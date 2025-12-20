@@ -52,4 +52,15 @@ This project presents a **Smart Car Inventory & Fault-Detection Management Syste
 6. [PHASEVI.md](PHASEVI.md)
 7. [PHASEVII.md](PHASEVII.md)
 
+# AUTHOR
+- **Name:** IZERE Sabin Patience  
+- **ID:** 27969  
+- **Institution:** AUCA Gishushu Campus  
+- **Email:** izeresabin@gmail.com  
+- **Lecturer:** Eric Maniraguha
+
+
+> "Whatever you do, work at it with all your heart, as working for the Lord, not for human masters."  
+> — Colossians 3:23 (NIV)
+
 
