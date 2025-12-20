@@ -1358,6 +1358,58 @@ END;
 <img width="1919" height="1019" alt="5  RECOVERY MECHANISM EXAMPLE" src="https://github.com/user-attachments/assets/19d5b9a3-a149-417d-bbbd-0eaa9faf1a3a" />
 
 
+## G. Phase VI Testing Report
+
+This section documents the testing performed to verify the correctness, robustness, and performance of all procedures, functions, and cursors implemented in Phase VI.
+
+
+### G.1 Procedure and Function Testing
+This test confirms that stored procedures and functions execute correctly using valid input values.
+
+```sql
+-- Test Procedure: add_car
+EXEC smartcar_mgmt_pkg.add_car(3001, 'Civic', 'Honda', 2018, 'ACTIVE');
+````
+<img width="1919" height="1016" alt="1 Test for (Each procedure tested)" src="https://github.com/user-attachments/assets/2195cbba-fd56-4389-940e-0bc129d56cb1" />
+
+
+### G.2 Edge Case Validation
+
+This test validates that the system correctly handles invalid or unexpected input values.
+
+```sql
+-- Test Function: is_valid_status (invalid status)
+SELECT smartcar_mgmt_pkg.is_valid_status('BROKEN') AS test_result
+FROM dual;
+```
+<img width="1546" height="472" alt="test2" src="https://github.com/user-attachments/assets/14e5658e-74ba-48f6-a24f-127c93c83a93" />
+
+
+### G.3 Performance Verification
+
+This test verifies performance efficiency when processing multiple records using bulk operations.
+
+```sql
+DECLARE
+    TYPE car_list IS TABLE OF car.car_id%TYPE;
+    v_ids car_list;
+BEGIN
+    SELECT car_id BULK COLLECT INTO v_ids FROM car;
+    DBMS_OUTPUT.PUT_LINE('Rows fetched: ' || v_ids.COUNT);
+END;
+/
+```
+<img width="1502" height="592" alt="test3" src="https://github.com/user-attachments/assets/24d2a2fd-0ced-4967-8716-79fe07360629" />
+
+
+## Phase VI Testing Summary
+
+All procedures, functions, and cursors were tested successfully.
+Edge cases were handled gracefully, and bulk operations demonstrated efficient performance when processing multiple records.
+
+
+
+
 ## Phase VI Completion Summary
 Phase VI successfully demonstrates advanced PL/SQL capabilities including procedures, functions, cursors, packages, analytical queries, and robust exception handling, ensuring reliability, performance, and data integrity across the system.
 
