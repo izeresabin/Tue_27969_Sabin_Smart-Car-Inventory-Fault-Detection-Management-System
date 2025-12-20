@@ -44,5 +44,12 @@ This project presents a **Smart Car Inventory & Fault-Detection Management Syste
 
 # PHASES DIRECTION LINKS 
 
-[PHASEI.md](PHASEI.md)
+1. [PHASEI.md](PHASEI.md)
+2. [PHASEII.md](PHASEII.md)
+3. [PHASEIII.md](PHASEIII.md)
+4. [PHASEIV.md](PHASEIV.md)
+5. [PHASEV.md](PHASEV.md)
+6. [PHASEVI.md](PHASEVI.md)
+7. [PHASEVII.md](PHASEVII.md)
+
 
