@@ -445,3 +445,73 @@ WHERE m.mechanic_id IS NULL;
 ```
 <img width="1919" height="1017" alt="foreign key data integrity validation" src="https://github.com/user-attachments/assets/f3cf25f7-ee11-428c-b2cd-4a207c945364" />
 
+### C.4 Data Completeness Check
+This validation ensures that all tables contain records and confirms successful data insertion across the database.
+
+```sql
+SELECT 'MECHANIC' AS table_name, COUNT(*) FROM mechanic
+UNION ALL
+SELECT 'CAR', COUNT(*) FROM car
+UNION ALL
+SELECT 'INSPECTION', COUNT(*) FROM inspection
+UNION ALL
+SELECT 'FAULT_REPORT', COUNT(*) FROM fault_report
+UNION ALL
+SELECT 'STATUS_HISTORY', COUNT(*) FROM status_history;
+```
+<img width="1894" height="1019" alt="data completeness check" src="https://github.com/user-attachments/assets/e306e890-0fca-43ea-80a5-bf30231fd174" />
+Perfect — these are **strong testing queries** and exactly what lecturers expect to see.
+Below is your **Testing Queries section**, **cleanly structured**, with **clear titles per category**, and **ready for screenshots**.
+
+
+## D. Testing and Query Verification
+
+### D.1 Basic Data Retrieval Queries
+These queries verify that data can be retrieved successfully from each table.
+
+```sql
+SELECT * FROM car;
+SELECT * FROM mechanic;
+SELECT * FROM inspection;
+SELECT * FROM fault_report;
+SELECT * FROM status_history;
+````
+example: car
+<img width="1918" height="1017" alt="test car" src="https://github.com/user-attachments/assets/441ffdb7-ab99-423f-89c0-b219dcae6188" />
+
+
+### D.2 Multi-Table Join Queries
+
+These queries validate relationships between tables using JOIN operations.
+
+```sql
+SELECT c.car_id, c.model, c.brand, i.inspection_date, i.result
+FROM car c
+JOIN inspection i ON c.car_id = i.car_id;
+
+SELECT m.name, COUNT(i.inspection_id) AS total_inspections
+FROM mechanic m
+LEFT JOIN inspection i ON m.mechanic_id = i.mechanic_id
+GROUP BY m.name;
+```
+<img width="1917" height="1018" alt="number of inspections per mechanic" src="https://github.com/user-attachments/assets/9faccd94-6356-40ce-8883-9a2f10100b9b" />
+
+
+### D.3 Subquery Testing
+
+This query demonstrates the use of subqueries to filter records based on conditions from related tables.
+
+```sql
+-- Cars that have failed inspection
+SELECT *
+FROM car
+WHERE car_id IN (
+    SELECT car_id
+    FROM inspection
+    WHERE result = 'FAIL'
+);
+```
+<img width="1914" height="1019" alt="subqueries test" src="https://github.com/user-attachments/assets/b17b74e1-15f8-4105-af93-3996681ebfe0" />
+
+
+
