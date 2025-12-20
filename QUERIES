@@ -1,0 +1,1154 @@
+show con_name;
+show user;
+
+----------------PHASE V-------------------------
+
+-----------tables creation----------------------
+
+CREATE TABLE car (
+    car_id          NUMBER          PRIMARY KEY,
+    model           VARCHAR2(50)    NOT NULL,
+    brand           VARCHAR2(50)    NOT NULL,
+    year            NUMBER(4)       CHECK (year >= 1980),
+    status          VARCHAR2(30)    CHECK (status IN ('ACTIVE','IN_REPAIR','DISABLED')),
+    date_registered DATE            DEFAULT SYSDATE
+);
+
+
+CREATE TABLE mechanic (
+    mechanic_id    NUMBER          PRIMARY KEY,
+    name           VARCHAR2(50)    NOT NULL,
+    specialization VARCHAR2(50)    CHECK (specialization IN ('Engine','Electrical','Bodywork','Diagnostics'))
+);
+
+CREATE TABLE inspection (
+    inspection_id   NUMBER          PRIMARY KEY,
+    car_id          NUMBER          NOT NULL,
+    mechanic_id     NUMBER          NOT NULL,
+    inspection_date DATE            NOT NULL,
+    notes           VARCHAR2(200),
+    result          VARCHAR2(20)    CHECK (result IN ('PASS','FAIL')),
+
+    CONSTRAINT fk_inspection_car
+        FOREIGN KEY (car_id) REFERENCES car(car_id),
+    CONSTRAINT fk_inspection_mechanic
+        FOREIGN KEY (mechanic_id) REFERENCES mechanic(mechanic_id)
+);
+
+CREATE TABLE fault_report (
+    fault_id       NUMBER          PRIMARY KEY,
+    car_id         NUMBER          NOT NULL,
+    fault_desc     VARCHAR2(200)   NOT NULL,
+    severity       VARCHAR2(20)    CHECK (severity IN ('MINOR','MAJOR','CRITICAL')),
+    date_reported  DATE            DEFAULT SYSDATE,
+
+    CONSTRAINT fk_fault_car
+        FOREIGN KEY (car_id) REFERENCES car(car_id)
+);
+
+CREATE TABLE status_history (
+    history_id   NUMBER          PRIMARY KEY,
+    car_id       NUMBER          NOT NULL,
+    old_status   VARCHAR2(30)    CHECK (old_status IN ('ACTIVE','IN_REPAIR','DISABLED')),
+    new_status   VARCHAR2(30)    CHECK (new_status IN ('ACTIVE','IN_REPAIR','DISABLED')),
+    change_date  DATE            DEFAULT SYSDATE,
+
+    CONSTRAINT fk_status_car
+        FOREIGN KEY (car_id) REFERENCES car(car_id)
+);
+
+show user;
+
+----- DATA INSERTION------------
+------ MECHANIC------------
+
+INSERT INTO mechanic VALUES (1, 'John Mukasa', 'Engine');
+INSERT INTO mechanic VALUES (2, 'Alice Karemera', 'Electrical');
+INSERT INTO mechanic VALUES (3, 'Samuel Mugenzi', 'Bodywork');
+INSERT INTO mechanic VALUES (4, 'Fiona Uwase', 'Diagnostics');
+-- Edge case: NULL specialization allowed
+INSERT INTO mechanic VALUES (5, 'Patrick Nshuti', NULL);
+
+--------------CAR-------------
+-- Valid normal entries
+INSERT INTO car VALUES (101, 'Corolla', 'Toyota', 2018, 'ACTIVE', SYSDATE);
+INSERT INTO car VALUES (102, 'Civic', 'Honda', 2020, 'IN_REPAIR', SYSDATE);
+
+-- Edge case: older valid year
+INSERT INTO car VALUES (103, 'Pajero', 'Mitsubishi', 1985, 'DISABLED', SYSDATE);
+
+-- Edge case: rare brand + active status
+INSERT INTO car VALUES (104, 'Model S', 'Tesla', 2021, 'ACTIVE', SYSDATE);
+
+-- Edge case: NULL date_registered (allowed)
+INSERT INTO car VALUES (105, 'A4', 'Audi', 2019, 'IN_REPAIR', NULL);
+
+--------------INSPECTION---------------
+INSERT INTO inspection 
+VALUES (1001, 101, 1, DATE '2024-01-10', 'Routine engine check', 'PASS');
+
+INSERT INTO inspection 
+VALUES (1002, 102, 2, DATE '2024-02-15', 'Electrical diagnostics', 'FAIL');
+
+-- Edge case: NULL notes
+INSERT INTO inspection 
+VALUES (1003, 103, 3, DATE '2024-03-05', NULL, 'FAIL');
+
+-- Edge case: PASS with notes containing special characters
+INSERT INTO inspection 
+VALUES (1004, 104, 4, DATE '2024-03-20', 'Full scan – no issues found', 'PASS');
+
+-- Edge case: Inspection done in the future (valid real scenario for scheduled inspections)
+INSERT INTO inspection 
+VALUES (1005, 105, 5, DATE '2025-01-10', 'Pre-scheduled annual inspection', 'PASS');
+
+---------------------FAULT REPORT-----------------------------------
+INSERT INTO fault_report 
+VALUES (5001, 102, 'Alternator failure', 'MAJOR', SYSDATE);
+
+INSERT INTO fault_report 
+VALUES (5002, 103, 'Front bumper dent', 'MINOR', SYSDATE);
+
+-- Edge case: CRITICAL severity
+INSERT INTO fault_report 
+VALUES (5003, 104, 'Brake system malfunction', 'CRITICAL', SYSDATE);
+
+-- Edge case: Long description
+INSERT INTO fault_report 
+VALUES (5004, 105, 'Battery voltage irregularities detected overnight', 'MAJOR', SYSDATE);
+
+-- Edge case: No date provided (DEFAULT SYSDATE will fill)
+INSERT INTO fault_report 
+VALUES (5005, 101, 'Oil leak under engine bay', 'MINOR', NULL);
+
+------------STATUS HISTORY-------------
+
+INSERT INTO status_history 
+VALUES (7001, 102, 'ACTIVE', 'IN_REPAIR', SYSDATE);
+
+INSERT INTO status_history 
+VALUES (7002, 103, 'IN_REPAIR', 'DISABLED', SYSDATE);
+
+-- Edge case: new_status same as old_status
+INSERT INTO status_history 
+VALUES (7003, 104, 'ACTIVE', 'ACTIVE', SYSDATE);
+
+-- Edge case: manual back-and-forth update
+INSERT INTO status_history 
+VALUES (7004, 105, 'IN_REPAIR', 'ACTIVE', SYSDATE);
+
+-- Edge case: NULL date (uses DEFAULT SYSDATE)
+INSERT INTO status_history 
+VALUES (7005, 101, 'ACTIVE', 'IN_REPAIR', NULL);
+
+-----------VALIDATION KEY UNIQUENESS-------
+SELECT mechanic_id, COUNT(*) 
+FROM mechanic 
+GROUP BY mechanic_id 
+HAVING COUNT(*) > 1;
+
+SELECT car_id, COUNT(*) 
+FROM car 
+GROUP BY car_id 
+HAVING COUNT(*) > 1;
+
+SELECT * 
+FROM car
+WHERE status NOT IN ('ACTIVE','IN_REPAIR','DISABLED');
+
+SELECT * 
+FROM fault_report
+WHERE severity NOT IN ('MINOR','MAJOR','CRITICAL');
+
+SELECT * 
+FROM car
+WHERE year < 1980;
+
+---------------Foreign Key Integrity Verification-------
+
+SELECT i.inspection_id
+FROM inspection i
+LEFT JOIN car c ON i.car_id = c.car_id
+WHERE c.car_id IS NULL;
+
+SELECT i.inspection_id
+FROM inspection i
+LEFT JOIN mechanic m ON i.mechanic_id = m.mechanic_id
+WHERE m.mechanic_id IS NULL;
+
+----------DATA COMPLETENESS CHECK-------------
+
+SELECT 'MECHANIC' AS table_name, COUNT(*) FROM mechanic
+UNION ALL
+SELECT 'CAR', COUNT(*) FROM car
+UNION ALL
+SELECT 'INSPECTION', COUNT(*) FROM inspection
+UNION ALL
+SELECT 'FAULT_REPORT', COUNT(*) FROM fault_report
+UNION ALL
+SELECT 'STATUS_HISTORY', COUNT(*) FROM status_history;
+
+SELECT *
+FROM car
+WHERE model IS NULL
+   OR brand IS NULL
+   OR status IS NULL;
+   
+-----------Testing Queries-------------
+------1.Basic retrieval (SELECT *)---
+
+SELECT * FROM car;
+SELECT * FROM mechanic;
+SELECT * FROM inspection;
+SELECT * FROM fault_report;
+SELECT * FROM status_history;
+
+------2.Joins (multi-table queries)----
+
+SELECT c.car_id, c.model, c.brand, i.inspection_date, i.result
+FROM car c
+JOIN inspection i ON c.car_id = i.car_id;
+
+SELECT m.name, COUNT(i.inspection_id) AS total_inspections
+FROM mechanic m
+LEFT JOIN inspection i ON m.mechanic_id = i.mechanic_id
+GROUP BY m.name;
+
+------SUBQUERIES TEST---------
+--Cars that have failed inspection
+SELECT *
+FROM car
+WHERE car_id IN (
+    SELECT car_id
+    FROM inspection
+    WHERE result = 'FAIL'
+);
+
+SELECT *
+FROM car
+WHERE car_id IN (
+    SELECT car_id
+    FROM fault_report
+    WHERE severity = 'CRITICAL'
+);
+
+SELECT car_id, model
+FROM car
+WHERE car_id IN (
+    SELECT car_id
+    FROM inspection
+    WHERE EXTRACT(MONTH FROM inspection_date) = 2
+      AND EXTRACT(YEAR FROM inspection_date) = 2024
+);
+
+------------PHASE VI----------
+--PROCEDURES
+
+--PROCEDURE 1:Add a New Car (INSERT + IN parameters + exception handling)
+
+CREATE OR REPLACE PROCEDURE add_car (
+    p_car_id        IN NUMBER,
+    p_model         IN VARCHAR2,
+    p_brand         IN VARCHAR2,
+    p_year          IN NUMBER,
+    p_status        IN VARCHAR2,
+    p_date_registered IN DATE DEFAULT SYSDATE
+)
+IS
+BEGIN
+    INSERT INTO car (car_id, model, brand, year, status, date_registered)
+    VALUES (p_car_id, p_model, p_brand, p_year, p_status, p_date_registered);
+
+    DBMS_OUTPUT.PUT_LINE('Car inserted successfully: ' || p_car_id);
+
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Car ID already exists.');
+    WHEN VALUE_ERROR THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Invalid data type provided.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END;
+/
+
+--PROCEDURE 2: Update Car Status (UPDATE + IN / OUT parameter + validation + exception handling)
+
+CREATE OR REPLACE PROCEDURE update_car_status (
+    p_car_id    IN NUMBER,
+    p_new_status IN VARCHAR2,
+    p_old_status OUT VARCHAR2
+)
+IS
+BEGIN
+    -- Fetch old status
+    SELECT status INTO p_old_status 
+    FROM car 
+    WHERE car_id = p_car_id;
+
+    -- Update to new status
+    UPDATE car
+    SET status = p_new_status
+    WHERE car_id = p_car_id;
+
+    -- Log into status history
+    INSERT INTO status_history (history_id, car_id, old_status, new_status, change_date)
+    VALUES (status_history_seq.NEXTVAL, p_car_id, p_old_status, p_new_status, SYSDATE);
+
+    DBMS_OUTPUT.PUT_LINE('Status updated from ' || p_old_status || ' to ' || p_new_status);
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Car ID does not exist.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END;
+/
+
+CREATE SEQUENCE status_history_seq START WITH 8000 INCREMENT BY 1;
+
+--PROCEDURE 3: Delete Mechanic (DELETE + IN OUT parameter + exception handling + business check)
+
+CREATE OR REPLACE PROCEDURE delete_mechanic (
+    p_mechanic_id IN NUMBER,
+    p_rows_deleted OUT NUMBER
+)
+IS
+    v_count NUMBER;
+BEGIN
+    -- Check if mechanic is referenced in inspections
+    SELECT COUNT(*) INTO v_count
+    FROM inspection
+    WHERE mechanic_id = p_mechanic_id;
+
+    IF v_count > 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Mechanic is linked to inspections. Cannot delete.');
+        p_rows_deleted := 0;
+        RETURN;
+    END IF;
+
+    -- Delete mechanic
+    DELETE FROM mechanic
+    WHERE mechanic_id = p_mechanic_id;
+
+    p_rows_deleted := SQL%ROWCOUNT;
+
+    DBMS_OUTPUT.PUT_LINE('Mechanic deleted. Rows affected: ' || p_rows_deleted);
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Mechanic not found.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END;
+/
+
+--FUNCTIONS
+
+---FUNCTION 1 — Calculation Function
+--(Calculate how many days a car has been in the system)
+CREATE OR REPLACE FUNCTION get_car_age_days (
+    p_car_id IN NUMBER
+) RETURN NUMBER
+IS
+    v_days NUMBER;
+BEGIN
+    SELECT TRUNC(SYSDATE - date_registered)
+    INTO v_days
+    FROM car
+    WHERE car_id = p_car_id;
+
+    RETURN v_days;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN NULL; -- car not found
+    WHEN OTHERS THEN
+        RETURN NULL;
+END;
+/
+
+--FUNCTION 2 — Validation Function (Validate car status before updating)
+--This checks if a given status is allowed.
+CREATE OR REPLACE FUNCTION is_valid_status (
+    p_status IN VARCHAR2
+) RETURN VARCHAR2
+IS
+BEGIN
+    IF p_status IN ('ACTIVE', 'IN_REPAIR', 'DISABLED') THEN
+        RETURN 'VALID';
+    ELSE
+        RETURN 'INVALID';
+    END IF;
+
+END;
+/
+
+--FUNCTION 3 — Lookup Function (Get the mechanic’s name using mechanic_id)
+CREATE OR REPLACE FUNCTION get_mechanic_name (
+    p_mechanic_id IN NUMBER
+) RETURN VARCHAR2
+IS
+    v_name mechanic.name%TYPE;
+BEGIN
+    SELECT name INTO v_name
+    FROM mechanic
+    WHERE mechanic_id = p_mechanic_id;
+
+    RETURN v_name;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN 'MECHANIC NOT FOUND';
+    WHEN OTHERS THEN
+        RETURN 'ERROR';
+END;
+/
+
+--FUNCTION 4 — Lookup + Validation(Check if a car has ANY critical faults)
+CREATE OR REPLACE FUNCTION has_critical_fault (
+    p_car_id IN NUMBER
+) RETURN VARCHAR2
+IS
+    v_count NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_count
+    FROM fault_report
+    WHERE car_id = p_car_id
+      AND severity = 'CRITICAL';
+
+    IF v_count > 0 THEN
+        RETURN 'YES';
+    ELSE
+        RETURN 'NO';
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN 'ERROR';
+END;
+/
+
+-----CURSORS--------
+-----CURSOR 1 — Explicit Cursor (Multi-row Processing):List all cars that are IN_REPAIR and print them
+DECLARE
+    CURSOR cur_cars_repairs IS
+        SELECT car_id, model, brand
+        FROM car
+        WHERE status = 'IN_REPAIR';
+
+    v_car_id   car.car_id%TYPE;
+    v_model    car.model%TYPE;
+    v_brand    car.brand%TYPE;
+BEGIN
+    OPEN cur_cars_repairs;
+
+    LOOP
+        FETCH cur_cars_repairs INTO v_car_id, v_model, v_brand;
+        EXIT WHEN cur_cars_repairs%NOTFOUND;
+
+        DBMS_OUTPUT.PUT_LINE(
+            'Car: ' || v_car_id || ' | ' || v_model || ' | ' || v_brand
+        );
+    END LOOP;
+
+    CLOSE cur_cars_repairs;
+END;
+/
+
+--CURSOR 2 — Parameterized Cursor:List inspections performed by a specific mechanic
+DECLARE
+    CURSOR cur_inspections_by_mech (p_mech_id NUMBER) IS
+        SELECT inspection_id, car_id, result
+        FROM inspection
+        WHERE mechanic_id = p_mech_id;
+
+    v_insp_id inspection.inspection_id%TYPE;
+    v_car_id  inspection.car_id%TYPE;
+    v_result  inspection.result%TYPE;
+BEGIN
+    OPEN cur_inspections_by_mech(2);  -- Example: mechanic_id = 2
+
+    LOOP
+        FETCH cur_inspections_by_mech INTO v_insp_id, v_car_id, v_result;
+        EXIT WHEN cur_inspections_by_mech%NOTFOUND;
+
+        DBMS_OUTPUT.PUT_LINE(
+            'Inspection: ' || v_insp_id ||
+            '  | Car: ' || v_car_id ||
+            '  | Result: ' || v_result
+        );
+    END LOOP;
+
+    CLOSE cur_inspections_by_mech;
+END;
+/
+
+--CURSOR 3 — BULK OPERATION (BULK COLLECT + FORALL):Bulk insert into STATUS_HISTORY for all ACTIVE cars
+DECLARE
+    TYPE car_list IS TABLE OF car.car_id%TYPE;
+    v_car_ids car_list;
+
+BEGIN
+    -- BULK COLLECT: get all active cars
+    SELECT car_id
+    BULK COLLECT INTO v_car_ids
+    FROM car
+    WHERE status = 'ACTIVE';
+
+    -- FORALL: Insert history for all cars in bulk
+    FORALL i IN 1 .. v_car_ids.COUNT
+        INSERT INTO status_history (
+            history_id, car_id, old_status, new_status, change_date
+        )
+        VALUES (
+            status_history_seq.NEXTVAL,
+            v_car_ids(i),
+            'ACTIVE',
+            'ACTIVE',
+            SYSDATE
+        );
+
+    DBMS_OUTPUT.PUT_LINE('Bulk history insert completed for ' || v_car_ids.COUNT || ' cars.');
+END;
+/
+
+------WINDOW FUNCTIONS
+
+--1. ROW_NUMBER():Rank cars by year (newest to oldest)
+SELECT 
+    car_id,
+    model,
+    brand,
+    year,
+    ROW_NUMBER() OVER (ORDER BY year DESC) AS row_num
+FROM car;
+
+--2. RANK():Rank cars by manufacturing year (ties get same rank)
+SELECT 
+    car_id,
+    model,
+    brand,
+    year,
+    RANK() OVER (ORDER BY year DESC) AS year_rank
+FROM car;
+
+--3.DENSE_RANK():Rank severity levels across fault reports
+SELECT 
+    car_id,
+    severity,
+    DENSE_RANK() OVER (ORDER BY severity DESC) AS severity_rank
+FROM fault_report;
+
+--4. LAG():Compare a car’s current status with the previous status change
+SELECT
+    car_id,
+    old_status,
+    new_status,
+    change_date,
+    LAG(new_status, 1) OVER (PARTITION BY car_id ORDER BY change_date)
+        AS previous_status
+FROM status_history;
+
+--5. LEAD():Show the next scheduled status changeSELECT
+    SELECT
+    car_id,
+    new_status,
+    change_date,
+    LEAD(new_status, 1) OVER (PARTITION BY car_id ORDER BY change_date)
+        AS next_status
+FROM status_history;
+
+--6. PARTITION BY + ORDER BY : Show each mechanic’s inspection order per car
+SELECT
+    mechanic_id,
+    inspection_id,
+    car_id,
+    inspection_date,
+    ROW_NUMBER() OVER (
+        PARTITION BY mechanic_id ORDER BY inspection_date
+    ) AS mechanic_inspection_order
+FROM inspection;
+
+--7. Aggregate With OVER(): Count total inspections per mechanic while showing each row
+SELECT 
+    mechanic_id,
+    inspection_id,
+    car_id,
+    result,
+    COUNT(*) OVER (PARTITION BY mechanic_id) AS total_inspections
+FROM inspection;
+
+--8. Moving Average of Inspections (per car)
+SELECT
+    car_id,
+    inspection_date,
+    result,
+    COUNT(*) OVER (PARTITION BY car_id ORDER BY inspection_date 
+                   ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+        AS rolling_3_inspection_count
+FROM inspection;
+
+----PACKAGES----------
+
+--PACKAGE SPECIFICATION (PUBLIC INTERFACE):This is what other users/programs can call.
+CREATE OR REPLACE PACKAGE smartcar_mgmt_pkg AS
+
+    -- Procedure: Add a new car
+    PROCEDURE add_car (
+        p_car_id        IN NUMBER,
+        p_model         IN VARCHAR2,
+        p_brand         IN VARCHAR2,
+        p_year          IN NUMBER,
+        p_status        IN VARCHAR2,
+        p_date_registered IN DATE DEFAULT SYSDATE
+    );
+
+    -- Procedure: Update car status (with OUT old status)
+    PROCEDURE update_car_status (
+        p_car_id     IN NUMBER,
+        p_new_status IN VARCHAR2,
+        p_old_status OUT VARCHAR2
+    );
+
+    -- Procedure: Delete mechanic safely
+    PROCEDURE delete_mechanic (
+        p_mechanic_id  IN NUMBER,
+        p_rows_deleted OUT NUMBER
+    );
+
+    -- Function: Validate car status
+    FUNCTION is_valid_status (
+        p_status IN VARCHAR2
+    ) RETURN VARCHAR2;
+
+    -- Function: Get mechanic name
+    FUNCTION get_mechanic_name (
+        p_mechanic_id IN NUMBER
+    ) RETURN VARCHAR2;
+
+    -- Function: Check if a car has a critical fault
+    FUNCTION has_critical_fault (
+        p_car_id IN NUMBER
+    ) RETURN VARCHAR2;
+
+END smartcar_mgmt_pkg;
+/
+
+--PACKAGE BODY (IMPLEMENTATION):This contains the actual code.
+CREATE OR REPLACE PACKAGE BODY smartcar_mgmt_pkg AS
+
+
+-- ===========================================
+-- PROCEDURE 1: Add a new car
+-- ===========================================
+PROCEDURE add_car (
+    p_car_id        IN NUMBER,
+    p_model         IN VARCHAR2,
+    p_brand         IN VARCHAR2,
+    p_year          IN NUMBER,
+    p_status        IN VARCHAR2,
+    p_date_registered IN DATE
+)
+IS
+BEGIN
+    INSERT INTO car (car_id, model, brand, year, status, date_registered)
+    VALUES (p_car_id, p_model, p_brand, p_year, p_status, p_date_registered);
+
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Car ID already exists.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END add_car;
+
+
+
+-- ===========================================
+-- PROCEDURE 2: Update car status
+-- ===========================================
+PROCEDURE update_car_status (
+    p_car_id     IN NUMBER,
+    p_new_status IN VARCHAR2,
+    p_old_status OUT VARCHAR2
+)
+IS
+BEGIN
+    -- Fetch previous status
+    SELECT status INTO p_old_status
+    FROM car
+    WHERE car_id = p_car_id;
+
+    -- Update car
+    UPDATE car
+    SET status = p_new_status
+    WHERE car_id = p_car_id;
+
+    -- Log history
+    INSERT INTO status_history (
+        history_id, car_id, old_status, new_status, change_date
+    )
+    VALUES (
+        status_history_seq.NEXTVAL,
+        p_car_id,
+        p_old_status,
+        p_new_status,
+        SYSDATE
+    );
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Car not found.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END update_car_status;
+
+
+
+-- ===========================================
+-- PROCEDURE 3: Delete mechanic
+-- ===========================================
+PROCEDURE delete_mechanic (
+    p_mechanic_id  IN NUMBER,
+    p_rows_deleted OUT NUMBER
+)
+IS
+    v_count NUMBER;
+BEGIN
+    -- Block deletion if mechanic is referenced
+    SELECT COUNT(*) INTO v_count
+    FROM inspection
+    WHERE mechanic_id = p_mechanic_id;
+
+    IF v_count > 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Mechanic has inspections.');
+        p_rows_deleted := 0;
+        RETURN;
+    END IF;
+
+    -- Delete record
+    DELETE FROM mechanic
+    WHERE mechanic_id = p_mechanic_id;
+
+    p_rows_deleted := SQL%ROWCOUNT;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END delete_mechanic;
+
+
+
+-- ===========================================
+-- FUNCTION 1: Validate status
+-- ===========================================
+FUNCTION is_valid_status (
+    p_status IN VARCHAR2
+) RETURN VARCHAR2
+IS
+BEGIN
+    IF p_status IN ('ACTIVE', 'IN_REPAIR', 'DISABLED') THEN
+        RETURN 'VALID';
+    ELSE
+        RETURN 'INVALID';
+    END IF;
+END is_valid_status;
+
+
+
+-- ===========================================
+-- FUNCTION 2: Get mechanic name
+-- ===========================================
+FUNCTION get_mechanic_name (
+    p_mechanic_id IN NUMBER
+) RETURN VARCHAR2
+IS
+    v_name mechanic.name%TYPE;
+BEGIN
+    SELECT name INTO v_name
+    FROM mechanic
+    WHERE mechanic_id = p_mechanic_id;
+
+    RETURN v_name;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN 'MECHANIC NOT FOUND';
+END get_mechanic_name;
+
+
+
+-- ===========================================
+-- FUNCTION 3: Check for critical fault
+-- ===========================================
+FUNCTION has_critical_fault (
+    p_car_id IN NUMBER
+) RETURN VARCHAR2
+IS
+    v_count NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_count
+    FROM fault_report
+    WHERE car_id = p_car_id AND severity = 'CRITICAL';
+
+    IF v_count > 0 THEN
+        RETURN 'YES';
+    ELSE
+        RETURN 'NO';
+    END IF;
+
+END has_critical_fault;
+
+
+END smartcar_mgmt_pkg;
+/
+
+----Exception Handling---
+--1. ERROR LOGGING TABLE (Required for Logging):Before writing exceptions, we need a table to store errors.
+CREATE TABLE error_log (
+    error_id      NUMBER GENERATED ALWAYS AS IDENTITY,
+    error_code    NUMBER,
+    error_message VARCHAR2(400),
+    error_date    DATE DEFAULT SYSDATE,
+    module_name   VARCHAR2(50)
+);
+
+--2. ERROR LOGGING PROCEDURE: Every exception handler will call this.
+CREATE OR REPLACE PROCEDURE log_error (
+    p_code    NUMBER,
+    p_msg     VARCHAR2,
+    p_module  VARCHAR2
+)
+IS
+BEGIN
+    INSERT INTO error_log (error_code, error_message, module_name)
+    VALUES (p_code, p_msg, p_module);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Logging failed: ' || SQLERRM);
+END;
+/
+
+--3. PREDEFINED EXCEPTIONS EXAMPLE:This procedure updates a car and catches predefined exceptions
+--Example: Handling NO_DATA_FOUND, DUP_VAL_ON_INDEX, VALUE_ERROR.
+CREATE OR REPLACE PROCEDURE update_car_year (
+    p_car_id IN NUMBER,
+    p_year   IN NUMBER
+)
+IS
+BEGIN
+    UPDATE car
+    SET year = p_year
+    WHERE car_id = p_car_id;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        log_error(SQLCODE, SQLERRM, 'update_car_year');
+        DBMS_OUTPUT.PUT_LINE('Error: Car not found.');
+
+    WHEN DUP_VAL_ON_INDEX THEN
+        log_error(SQLCODE, SQLERRM, 'update_car_year');
+        DBMS_OUTPUT.PUT_LINE('Duplicate key error.');
+
+    WHEN VALUE_ERROR THEN
+        log_error(SQLCODE, SQLERRM, 'update_car_year');
+        DBMS_OUTPUT.PUT_LINE('Invalid numeric or date format.');
+
+    WHEN OTHERS THEN
+        log_error(SQLCODE, SQLERRM, 'update_car_year');
+        DBMS_OUTPUT.PUT_LINE('Unknown error occurred.');
+END;
+/
+
+--4. CUSTOM EXCEPTION EXAMPLE
+
+--We define a custom exception:
+--Requirement:"Car year cannot be in the future"
+CREATE OR REPLACE PROCEDURE add_car_safe (
+    p_car_id  IN NUMBER,
+    p_model   IN VARCHAR2,
+    p_brand   IN VARCHAR2,
+    p_year    IN NUMBER
+)
+IS
+    future_year EXCEPTION;
+BEGIN
+    IF p_year > EXTRACT(YEAR FROM SYSDATE) THEN
+        RAISE future_year;
+    END IF;
+
+    INSERT INTO car (car_id, model, brand, year, status, date_registered)
+    VALUES (p_car_id, p_model, p_brand, p_year, 'ACTIVE', SYSDATE);
+
+EXCEPTION
+    WHEN future_year THEN
+        log_error(-20010, 'Car manufacturing year cannot be in the future', 'add_car_safe');
+        DBMS_OUTPUT.PUT_LINE('Invalid year: cannot insert a future year.');
+
+    WHEN OTHERS THEN
+        log_error(SQLCODE, SQLERRM, 'add_car_safe');
+        DBMS_OUTPUT.PUT_LINE('Insert failed.');
+END;
+/
+
+--5. RECOVERY MECHANISM EXAMPLE:A recovery mechanism undoes or defaults a failed operation.
+--Example: If updating mechanic fails ? restore old data.
+CREATE OR REPLACE PROCEDURE safe_update_mechanic (
+    p_id      IN NUMBER,
+    p_newname IN VARCHAR2
+)
+IS
+    v_old_name  mechanic.name%TYPE;
+BEGIN
+    -- Backup old value
+    SELECT name INTO v_old_name
+    FROM mechanic
+    WHERE mechanic_id = p_id;
+
+    -- Attempt update
+    UPDATE mechanic
+    SET name = p_newname
+    WHERE mechanic_id = p_id;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Recovery: restore old name
+        UPDATE mechanic
+        SET name = v_old_name
+        WHERE mechanic_id = p_id;
+
+        log_error(SQLCODE, SQLERRM, 'safe_update_mechanic');
+
+        DBMS_OUTPUT.PUT_LINE('Update failed. Data restored.');
+END;
+/
+
+----------------PHASE VI TESTING REPORT---------
+--1. Test for: “Each procedure/function tested”
+--Example Test (Procedure: add_car)
+EXEC smartcar_mgmt_pkg.add_car(3001, 'Civic', 'Honda', 2018, 'ACTIVE');
+
+--2. Test for: “Edge cases validated”
+--Example Edge Case (Function: is_valid_status)
+SELECT smartcar_mgmt_pkg.is_valid_status('BROKEN') AS test_result
+FROM dual;
+
+--3. Test for: “Performance verified”
+--Example Performance Test (Bulk Cursor)
+DECLARE
+    TYPE car_list IS TABLE OF car.car_id%TYPE;
+    v_ids car_list;
+BEGIN
+    SELECT car_id BULK COLLECT INTO v_ids FROM car;
+    DBMS_OUTPUT.PUT_LINE('Rows fetched: ' || v_ids.COUNT);
+END;
+/
+SET SERVEROUTPUT ON;
+show con_name;
+
+-----PHASE VII: Advanced Programming & Auditing-------
+--STEP 1: Holiday Management:We store public holidays for the upcoming month.
+CREATE TABLE public_holidays (
+    holiday_date DATE PRIMARY KEY,
+    description  VARCHAR2(100)
+);
+
+INSERT INTO public_holidays VALUES (DATE '2025-01-01', 'New Year');
+INSERT INTO public_holidays VALUES (DATE '2025-01-26', 'Public Holiday');
+COMMIT;
+
+---STEP 2: Audit Log Table:Tracks who did what, when, and why it failed/succeeded.
+CREATE TABLE audit_log (
+    audit_id    NUMBER GENERATED ALWAYS AS IDENTITY,
+    username    VARCHAR2(50),
+    action      VARCHAR2(10),
+    table_name  VARCHAR2(50),
+    action_date DATE,
+    status      VARCHAR2(20),
+    message     VARCHAR2(200)
+);
+
+---STEP 3: Audit Logging Function:Reusable logging function.
+CREATE OR REPLACE PROCEDURE log_audit (
+    p_action     VARCHAR2,
+    p_table      VARCHAR2,
+    p_status     VARCHAR2,
+    p_message    VARCHAR2
+)
+IS
+BEGIN
+    INSERT INTO audit_log (
+        username, action, table_name,
+        action_date, status, message
+    )
+    VALUES (
+        USER, p_action, p_table,
+        SYSDATE, p_status, p_message
+    );
+END;
+/
+
+---STEP 4: Restriction Check Function (CORE RULE):This function enforces weekday + holiday restriction.
+CREATE OR REPLACE FUNCTION is_operation_allowed
+RETURN BOOLEAN
+IS
+    v_day        VARCHAR2(10);
+    v_holiday_ct NUMBER;
+BEGIN
+    -- Check weekday
+    v_day := TO_CHAR(SYSDATE, 'DY', 'NLS_DATE_LANGUAGE=ENGLISH');
+
+    IF v_day IN ('MON','TUE','WED','THU','FRI') THEN
+        RETURN FALSE;
+    END IF;
+
+    -- Check upcoming-month holidays
+    SELECT COUNT(*) INTO v_holiday_ct
+    FROM public_holidays
+    WHERE holiday_date BETWEEN TRUNC(SYSDATE)
+          AND ADD_MONTHS(TRUNC(SYSDATE), 1);
+
+    IF v_holiday_ct > 0 THEN
+        RETURN FALSE;
+    END IF;
+
+    RETURN TRUE;
+END;
+/
+
+---STEP 5: Simple Trigger (Single Table):Blocks DML on CAR table.
+CREATE OR REPLACE TRIGGER trg_car_restriction
+BEFORE INSERT OR UPDATE OR DELETE ON car
+FOR EACH ROW
+BEGIN
+    IF NOT is_operation_allowed THEN
+        log_audit(
+            ORA_SYSEVENT,
+            'CAR',
+            'BLOCKED',
+            'Operation not allowed on weekdays or public holidays'
+        );
+        RAISE_APPLICATION_ERROR(
+            -20050,
+            'DML blocked: Weekdays and public holidays are restricted'
+        );
+    END IF;
+
+    log_audit(
+        ORA_SYSEVENT,
+        'CAR',
+        'SUCCESS',
+        'Operation allowed'
+    );
+END;
+/
+
+---STEP 6: Compound Trigger (Multiple Events):Applies rule to INSPECTION, FAULT_REPORT, STATUS_HISTORY.
+CREATE OR REPLACE TRIGGER trg_dml_restriction_compound
+FOR INSERT OR UPDATE OR DELETE
+ON inspection
+COMPOUND TRIGGER
+
+BEFORE EACH ROW IS
+BEGIN
+    IF NOT is_operation_allowed THEN
+        log_audit(
+            ORA_SYSEVENT,
+            'INSPECTION',
+            'BLOCKED',
+            'Restricted day operation'
+        );
+        RAISE_APPLICATION_ERROR(
+            -20051,
+            'DML blocked by business rule'
+        );
+    END IF;
+END BEFORE EACH ROW;
+
+AFTER STATEMENT IS
+BEGIN
+    log_audit(
+        ORA_SYSEVENT,
+        'INSPECTION',
+        'SUCCESS',
+        'Statement completed successfully'
+    );
+END AFTER STATEMENT;
+
+END;
+/
+
+------PHASE VII TRIGGER & AUDITING TESTING-------
+--1. Trigger blocks INSERT on WEEKDAY (DENIED)
+INSERT INTO car
+VALUES (9100, 'TestCar', 'TestBrand', 2020, 'ACTIVE', SYSDATE);
+
+SELECT TO_CHAR(SYSDATE, 'DAY') FROM dual;
+
+--2.Trigger allows INSERT on WEEKEND (ALLOWED)
+INSERT INTO car
+VALUES (9101, 'WeekendCar', 'Toyota', 2021, 'ACTIVE', SYSDATE);
+
+SELECT * FROM car WHERE car_id = 9101;
+
+--3. Trigger blocks INSERT on PUBLIC HOLIDAY (DENIED)
+--Ensure a holiday exists in the upcoming month:
+INSERT INTO public_holidays
+VALUES (TRUNC(SYSDATE) + 5, 'Test Holiday');
+
+--test
+INSERT INTO car
+VALUES (9102, 'HolidayCar', 'Honda', 2022, 'ACTIVE', SYSDATE);
+
+--4. Audit log captures ALL attempts (SUCCESS + BLOCKED)
+SELECT username, action, table_name, status, message, action_date
+FROM audit_log
+ORDER BY action_date DESC;
+
+--6. User info properly recorded
+SELECT DISTINCT username
+FROM audit_log;
+
+commit;
+rollback;
+
+-------BI INTELLIGENT
+-- Total registered cars
+SELECT COUNT(*) AS total_cars FROM car;
+
+-- Cars currently under repair
+SELECT COUNT(*) AS cars_under_repair
+FROM car
+WHERE status = 'REPAIR';
+
+-- Inspection pass rate
+SELECT 
+  ROUND(
+    (SUM(CASE WHEN result = 'PASS' THEN 1 ELSE 0 END) / COUNT(*)) * 100, 2
+  ) AS pass_rate_percentage
+FROM inspection;
+
+-- High severity faults
+SELECT COUNT(*) AS high_severity_faults
+FROM fault_report
+WHERE severity = 'HIGH';
+
+-- Inspections per mechanic
+SELECT mechanic_id, COUNT(*) AS total_inspections
+FROM inspection
+GROUP BY mechanic_id;
+
+-- Audit violations
+SELECT COUNT(*) AS total_violations
+FROM audit_log
+WHERE status = 'DENIED';
+
+commit;
+
+
+
+
+
+
+
+
