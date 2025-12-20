@@ -192,5 +192,3 @@ WHERE status = 'DENIED';
 ```
 <img width="1343" height="986" alt="6" src="https://github.com/user-attachments/assets/e1f3e5d7-73a9-48a5-a1e9-6e4ce8b1e204" />
 
-FROM audit_log
-WHERE action_status = 'DENIED';
