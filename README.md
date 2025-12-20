@@ -767,51 +767,208 @@ Cursors are used for row-by-row processing of multiple records.
 **Purpose:**  
 Lists all cars currently marked as under repair.
 
-**Key Concepts:**
-- Explicit cursor lifecycle  
-- Loop processing  
-- Multi-row handling  
+```sql
+DECLARE
+    CURSOR cur_cars_repairs IS
+        SELECT car_id, model, brand
+        FROM car
+        WHERE status = 'IN_REPAIR';
 
----
+    v_car_id   car.car_id%TYPE;
+    v_model    car.model%TYPE;
+    v_brand    car.brand%TYPE;
+BEGIN
+    OPEN cur_cars_repairs;
+
+    LOOP
+        FETCH cur_cars_repairs INTO v_car_id, v_model, v_brand;
+        EXIT WHEN cur_cars_repairs%NOTFOUND;
+
+        DBMS_OUTPUT.PUT_LINE(
+            'Car: ' || v_car_id || ' | ' || v_model || ' | ' || v_brand
+        );
+    END LOOP;
+
+    CLOSE cur_cars_repairs;
+END;
+/
+```
+<img width="1915" height="1020" alt="CURSOR 1 — Explicit Cursor (Multi-row Processing)" src="https://github.com/user-attachments/assets/7f77f672-e61e-4852-84fe-1668d1d9a092" />
+
 
 ### C.2 Parameterized Cursor – Inspections by Mechanic
 **Purpose:**  
 Displays all inspections performed by a specific mechanic.
 
-**Key Concepts:**
-- Parameterized cursors  
-- Dynamic filtering  
-- Output formatting  
+```sql
+DECLARE
+    CURSOR cur_inspections_by_mech (p_mech_id NUMBER) IS
+        SELECT inspection_id, car_id, result
+        FROM inspection
+        WHERE mechanic_id = p_mech_id;
 
----
+    v_insp_id inspection.inspection_id%TYPE;
+    v_car_id  inspection.car_id%TYPE;
+    v_result  inspection.result%TYPE;
+BEGIN
+    OPEN cur_inspections_by_mech(2);  -- Example: mechanic_id = 2
+
+    LOOP
+        FETCH cur_inspections_by_mech INTO v_insp_id, v_car_id, v_result;
+        EXIT WHEN cur_inspections_by_mech%NOTFOUND;
+
+        DBMS_OUTPUT.PUT_LINE(
+            'Inspection: ' || v_insp_id ||
+            '  | Car: ' || v_car_id ||
+            '  | Result: ' || v_result
+        );
+    END LOOP;
+
+    CLOSE cur_inspections_by_mech;
+END;
+/
+```
+<img width="1919" height="1020" alt="CURSOR 2 — Parameterized Cursor" src="https://github.com/user-attachments/assets/230be494-38b0-44b0-b4e1-c2758d80f120" />
+
 
 ### C.3 Bulk Operations – Status History Logging
 **Purpose:**  
 Performs bulk insertion into the status history table for all active cars.
 
-**Key Concepts:**
-- BULK COLLECT  
-- FORALL  
-- Performance optimization  
+```sql
+DECLARE
+    TYPE car_list IS TABLE OF car.car_id%TYPE;
+    v_car_ids car_list;
 
----
+BEGIN
+    -- BULK COLLECT: get all active cars
+    SELECT car_id
+    BULK COLLECT INTO v_car_ids
+    FROM car
+    WHERE status = 'ACTIVE';
+
+    -- FORALL: Insert history for all cars in bulk
+    FORALL i IN 1 .. v_car_ids.COUNT
+        INSERT INTO status_history (
+            history_id, car_id, old_status, new_status, change_date
+        )
+        VALUES (
+            status_history_seq.NEXTVAL,
+            v_car_ids(i),
+            'ACTIVE',
+            'ACTIVE',
+            SYSDATE
+        );
+
+    DBMS_OUTPUT.PUT_LINE('Bulk history insert completed for ' || v_car_ids.COUNT || ' cars.');
+END;
+/
+```
+<img width="1919" height="1022" alt="CURSOR 3 — BULK OPERATION (BULK COLLECT + FORALL)" src="https://github.com/user-attachments/assets/1cf69053-70fb-4ab6-a960-ca698c5eca83" />
+
 
 ## D. Window Functions
 
 Window functions are used for analytical and reporting purposes.
 
 **Functions Used:**
-- ROW_NUMBER()  
-- RANK()  
-- DENSE_RANK()  
-- LAG()  
-- LEAD()  
-- COUNT() OVER()  
+- ROW_NUMBER()
+```sql
+1. ROW_NUMBER():Rank cars by year (newest to oldest)
+SELECT 
+    car_id,
+    model,
+    brand,
+    year,
+    ROW_NUMBER() OVER (ORDER BY year DESC) AS row_num
+FROM car;
+```
+  
+<img width="1917" height="1017" alt="1  ROW_NUMBER()" src="https://github.com/user-attachments/assets/5492e45f-6670-4cb7-963f-7fb72a1af923" />
+ 
+- RANK()
+```sql
+RANK():Rank cars by manufacturing year (ties get same rank)
+SELECT 
+    car_id,
+    model,
+    brand,
+    year,
+    RANK() OVER (ORDER BY year DESC) AS year_rank
+FROM car;
+```
+  <img width="1919" height="1020" alt="2  RANK()" src="https://github.com/user-attachments/assets/9bf918c3-8211-466c-a703-03684803c35b" />
+ 
+- DENSE_RANK()
+```sql
+DENSE_RANK():Rank severity levels across fault reports
+SELECT 
+    car_id,
+    severity,
+    DENSE_RANK() OVER (ORDER BY severity DESC) AS severity_rank
+FROM fault_report;
+```
+  <img width="1919" height="1018" alt="3  DENSE_RANK()" src="https://github.com/user-attachments/assets/479a625d-618e-4b2d-b0b7-edabad20e141" />
+ 
+- LAG()
+```sql
+LAG():Compare a car’s current status with the previous status change
+SELECT
+    car_id,
+    old_status,
+    new_status,
+    change_date,
+    LAG(new_status, 1) OVER (PARTITION BY car_id ORDER BY change_date)
+        AS previous_status
+FROM status_history;
+```
+  <img width="1919" height="1019" alt="4  LAG()" src="https://github.com/user-attachments/assets/f17e6b14-d8fc-43cc-86ff-372862a944e3" />
+
+- LEAD()
+```sql
+LEAD():Show the next scheduled status changeSELECT
+    SELECT
+    car_id,
+    new_status,
+    change_date,
+    LEAD(new_status, 1) OVER (PARTITION BY car_id ORDER BY change_date)
+        AS next_status
+FROM status_history;
+```
+  <img width="1914" height="1011" alt="5  LEAD()" src="https://github.com/user-attachments/assets/4e5345ad-8103-4e0c-b1a8-3dae45e43254" />
+ 
+- PARTITION BY + ORDER BY
+```sql
+PARTITION BY + ORDER BY : Show each mechanic’s inspection order per car
+SELECT
+    mechanic_id,
+    inspection_id,
+    car_id,
+    inspection_date,
+    ROW_NUMBER() OVER (
+        PARTITION BY mechanic_id ORDER BY inspection_date
+    ) AS mechanic_inspection_order
+FROM inspection;
+```
+  <img width="1919" height="1022" alt="6  PARTITION BY + ORDER BY" src="https://github.com/user-attachments/assets/653c1733-e4cb-46eb-a49d-00f84f9f727e" />
+
+-  Aggregate With OVER()
+  ```sql
+Aggregate With OVER(): Count total inspections per mechanic while showing each row
+SELECT 
+    mechanic_id,
+    inspection_id,
+    car_id,
+    result,
+    COUNT(*) OVER (PARTITION BY mechanic_id) AS total_inspections
+FROM inspection;
+```
+  <img width="1914" height="1012" alt="7  Aggregate With OVER()" src="https://github.com/user-attachments/assets/8a816573-86eb-4e2f-b90c-66b2186dc580" />
+
 
 **Business Value:**  
 Supports ranking, trend analysis, historical comparisons, and advanced reporting.
 
----
 
 ## E. Packages
 
