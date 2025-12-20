@@ -1402,7 +1402,7 @@ END;
 <img width="1502" height="592" alt="test3" src="https://github.com/user-attachments/assets/24d2a2fd-0ced-4967-8716-79fe07360629" />
 
 
-## Phase VI Testing Summary
+### Phase VI Testing Summary
 
 All procedures, functions, and cursors were tested successfully.
 Edge cases were handled gracefully, and bulk operations demonstrated efficient performance when processing multiple records.
@@ -1410,7 +1410,194 @@ Edge cases were handled gracefully, and bulk operations demonstrated efficient p
 
 
 
-## Phase VI Completion Summary
+### Phase VI Completion Summary
 Phase VI successfully demonstrates advanced PL/SQL capabilities including procedures, functions, cursors, packages, analytical queries, and robust exception handling, ensuring reliability, performance, and data integrity across the system.
 
+
+## PHASE VII – Advanced Programming, Triggers & Auditing
+
+Phase VII focuses on enforcing advanced business rules using database triggers, implementing auditing mechanisms to track user activities, and preventing unauthorized or invalid data manipulation operations automatically.
+
+
+## A. Public Holiday Management
+
+This table stores public holidays that are used to restrict database operations during sensitive dates.
+
+```sql
+CREATE TABLE public_holidays (
+    holiday_date DATE PRIMARY KEY,
+    description  VARCHAR2(100)
+);
+````
+
+```sql
+INSERT INTO public_holidays VALUES (DATE '2025-01-01', 'New Year');
+INSERT INTO public_holidays VALUES (DATE '2025-01-26', 'Public Holiday');
+COMMIT;
+```
+<img width="1915" height="486" alt="public holidays" src="https://github.com/user-attachments/assets/a1348e9e-4fb5-458d-8387-0ce3c9eb9f2b" />
+
+## B. Audit Log Table
+
+The audit log table records all database operations, including the user performing the action, the affected table, action type, execution status, and descriptive messages.
+
+```sql
+CREATE TABLE audit_log (
+    audit_id    NUMBER GENERATED ALWAYS AS IDENTITY,
+    username    VARCHAR2(50),
+    action      VARCHAR2(10),
+    table_name  VARCHAR2(50),
+    action_date DATE,
+    status      VARCHAR2(20),
+    message     VARCHAR2(200)
+);
+```
+<img width="1889" height="990" alt="Audit Log Table" src="https://github.com/user-attachments/assets/74916be1-2f97-4410-921f-3f70c4aa942f" />
+
+
+## C. Audit Logging Procedure
+
+This reusable procedure inserts audit records whenever a trigger detects a database operation.
+
+```sql
+CREATE OR REPLACE PROCEDURE log_audit (
+    p_action     VARCHAR2,
+    p_table      VARCHAR2,
+    p_status     VARCHAR2,
+    p_message    VARCHAR2
+)
+IS
+BEGIN
+    INSERT INTO audit_log (
+        username, action, table_name,
+        action_date, status, message
+    )
+    VALUES (
+        USER, p_action, p_table,
+        SYSDATE, p_status, p_message
+    );
+END;
+/
+```
+<img width="1916" height="1017" alt="Audit Logging procedure" src="https://github.com/user-attachments/assets/5a32a08f-cb36-4979-b427-0b57bea8e279" />
+
+
+## D. Core Business Rule Function – Operation Restriction
+
+This function enforces a core business rule that blocks database operations during weekdays and public holidays.
+
+```sql
+CREATE OR REPLACE FUNCTION is_operation_allowed
+RETURN BOOLEAN
+IS
+    v_day        VARCHAR2(10);
+    v_holiday_ct NUMBER;
+BEGIN
+    -- Check weekday
+    v_day := TO_CHAR(SYSDATE, 'DY', 'NLS_DATE_LANGUAGE=ENGLISH');
+
+    IF v_day IN ('MON','TUE','WED','THU','FRI') THEN
+        RETURN FALSE;
+    END IF;
+
+    -- Check upcoming-month holidays
+    SELECT COUNT(*) INTO v_holiday_ct
+    FROM public_holidays
+    WHERE holiday_date BETWEEN TRUNC(SYSDATE)
+          AND ADD_MONTHS(TRUNC(SYSDATE), 1);
+
+    IF v_holiday_ct > 0 THEN
+        RETURN FALSE;
+    END IF;
+
+    RETURN TRUE;
+END;
+/
+```
+<img width="1919" height="1015" alt="Restriction Check Function (CORE RULE)" src="https://github.com/user-attachments/assets/52091c63-db18-45e8-80a2-54596c32fd44" />
+
+
+## E. Simple Trigger – CAR Table Restriction
+
+This trigger blocks INSERT, UPDATE, and DELETE operations on the `CAR` table when business rules are violated and logs the action outcome.
+
+```sql
+CREATE OR REPLACE TRIGGER trg_car_restriction
+BEFORE INSERT OR UPDATE OR DELETE ON car
+FOR EACH ROW
+BEGIN
+    IF NOT is_operation_allowed THEN
+        log_audit(
+            ORA_SYSEVENT,
+            'CAR',
+            'BLOCKED',
+            'Operation not allowed on weekdays or public holidays'
+        );
+        RAISE_APPLICATION_ERROR(
+            -20050,
+            'DML blocked: Weekdays and public holidays are restricted'
+        );
+    END IF;
+
+    log_audit(
+        ORA_SYSEVENT,
+        'CAR',
+        'SUCCESS',
+        'Operation allowed'
+    );
+END;
+/
+```
+<img width="1910" height="1015" alt="Simple Trigger (Single Table)" src="https://github.com/user-attachments/assets/e80769e9-8b52-4340-81c7-da631315db73" />
+
+
+## F. Compound Trigger – INSPECTION Table
+
+This compound trigger applies the same restriction logic to the `INSPECTION` table while auditing both row-level and statement-level operations.
+
+```sql
+CREATE OR REPLACE TRIGGER trg_dml_restriction_compound
+FOR INSERT OR UPDATE OR DELETE
+ON inspection
+COMPOUND TRIGGER
+
+BEFORE EACH ROW IS
+BEGIN
+    IF NOT is_operation_allowed THEN
+        log_audit(
+            ORA_SYSEVENT,
+            'INSPECTION',
+            'BLOCKED',
+            'Restricted day operation'
+        );
+        RAISE_APPLICATION_ERROR(
+            -20051,
+            'DML blocked by business rule'
+        );
+    END IF;
+END BEFORE EACH ROW;
+
+AFTER STATEMENT IS
+BEGIN
+    log_audit(
+        ORA_SYSEVENT,
+        'INSPECTION',
+        'SUCCESS',
+        'Statement completed successfully'
+    );
+END AFTER STATEMENT;
+
+END;
+/
+```
+
+<img width="1914" height="1018" alt="Compound Trigger (Multiple Events)" src="https://github.com/user-attachments/assets/77be521d-a0a2-4783-aedd-43de3dd0a6b7" />
+
+
+## Phase VII Summary
+
+* Business rules are automatically enforced using triggers
+* Unauthorized operations are blocked at database level
+* All actions are audited with user, timestamp, and status
+* Public holidays and weekdays are dynamically enforced
 
