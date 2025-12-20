@@ -57,18 +57,21 @@ The Business Intelligence (BI) component enhances decision-making within the Sma
 - **Source Table:** INSPECTION
 - **Calculation:** (PASS / TOTAL) × 100
 - **Decision Supported:** Quality assurance
+<img width="1439" height="743" alt="inspection dash" src="https://github.com/user-attachments/assets/5a1ba7b0-4fc0-439a-8391-1907c3a1cf9e" />
 
 ### KPI 4: High Severity Faults
 - **Description:** Number of faults classified as high severity
 - **Source Table:** FAULT_REPORT
 - **Filter:** SEVERITY = 'HIGH'
 - **Decision Supported:** Risk management
+<img width="1412" height="743" alt="severity fault " src="https://github.com/user-attachments/assets/7035e9a4-fa47-4b8d-8ca6-0188a0f065dd" />
 
 ### KPI 5: Audit Violations
 - **Description:** Number of denied database operations
 - **Source Table:** AUDIT_LOG
 - **Filter:** ACTION_STATUS = 'DENIED'
 - **Decision Supported:** Policy compliance
+<img width="1466" height="734" alt="audit violations" src="https://github.com/user-attachments/assets/1984c7b6-6af7-4b1d-b2f6-0efbc410f9d3" />
 
 ### KPI 6: Inspections per Mechanic
 - **Description:** Total inspections conducted by each mechanic
@@ -141,31 +144,53 @@ The Business Intelligence (BI) component enhances decision-making within the Sma
 ```sql
 -- Total registered cars
 SELECT COUNT(*) AS total_cars FROM car;
+```
+<img width="1619" height="1023" alt="1" src="https://github.com/user-attachments/assets/c00c8d37-ca74-4e21-bd6c-3ec66351fe48" />
 
+```sql
 -- Cars currently under repair
 SELECT COUNT(*) AS cars_under_repair
 FROM car
 WHERE status = 'REPAIR';
+```
+<img width="1640" height="985" alt="2" src="https://github.com/user-attachments/assets/2bc790c4-a275-47d7-8763-03ef75d7b2ea" />
 
+```sql
 -- Inspection pass rate
 SELECT 
   ROUND(
     (SUM(CASE WHEN result = 'PASS' THEN 1 ELSE 0 END) / COUNT(*)) * 100, 2
   ) AS pass_rate_percentage
 FROM inspection;
+```
+<img width="1557" height="985" alt="3" src="https://github.com/user-attachments/assets/46b961bf-8876-4cbf-bf6e-719954d27acf" />
 
+
+```sql
 -- High severity faults
 SELECT COUNT(*) AS high_severity_faults
 FROM fault_report
 WHERE severity = 'HIGH';
+```
+<img width="1427" height="1014" alt="4" src="https://github.com/user-attachments/assets/da2b0d5b-592a-4d6a-9fbe-12f115e870c5" />
 
+
+```sql
 -- Inspections per mechanic
 SELECT mechanic_id, COUNT(*) AS total_inspections
 FROM inspection
 GROUP BY mechanic_id;
+```
+<img width="1640" height="985" alt="5" src="https://github.com/user-attachments/assets/ff37c911-9802-4115-b131-762ae161342c" />
 
+
+```sql
 -- Audit violations
 SELECT COUNT(*) AS total_violations
+FROM audit_log
+WHERE status = 'DENIED';
 ```
+<img width="1343" height="986" alt="6" src="https://github.com/user-attachments/assets/e1f3e5d7-73a9-48a5-a1e9-6e4ce8b1e204" />
+
 FROM audit_log
 WHERE action_status = 'DENIED';
