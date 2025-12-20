@@ -49,6 +49,8 @@ The Business Intelligence (BI) component enhances decision-making within the Sma
 - **Source Table:** CAR
 - **Filter:** STATUS = 'REPAIR'
 - **Decision Supported:** Resource allocation
+# KPI FOR CARS
+<img width="1426" height="730" alt="image" src="https://github.com/user-attachments/assets/f374235f-e08e-481a-b387-522711785a4f" />
 
 ### KPI 3: Inspection Pass Rate (%)
 - **Description:** Percentage of inspections that passed
