@@ -513,5 +513,301 @@ WHERE car_id IN (
 ```
 <img width="1914" height="1019" alt="subqueries test" src="https://github.com/user-attachments/assets/b17b74e1-15f8-4105-af93-3996681ebfe0" />
 
+# Phase VI – Procedures, Functions, Cursors, Packages & Exception Handling  
+
+## Phase Overview
+This phase demonstrates the implementation of advanced **PL/SQL programming constructs** to enforce business rules, automate operations, validate data, and handle exceptions within the Smart Car Inventory and Fault Management System.
+
+---
+
+## A. Stored Procedures
+
+Stored procedures encapsulate reusable database logic, improve security, and ensure consistency when performing database operations.
+
+### A.1 Procedure: Add a New Car
+**Purpose:**  
+Inserts a new car into the system using input parameters while handling duplicate keys and invalid data.
+
+```sql
+--PROCEDURE 1:Add a New Car (INSERT + IN parameters + exception handling)
+
+CREATE OR REPLACE PROCEDURE add_car (
+    p_car_id        IN NUMBER,
+    p_model         IN VARCHAR2,
+    p_brand         IN VARCHAR2,
+    p_year          IN NUMBER,
+    p_status        IN VARCHAR2,
+    p_date_registered IN DATE DEFAULT SYSDATE
+)
+IS
+BEGIN
+    INSERT INTO car (car_id, model, brand, year, status, date_registered)
+    VALUES (p_car_id, p_model, p_brand, p_year, p_status, p_date_registered);
+
+    DBMS_OUTPUT.PUT_LINE('Car inserted successfully: ' || p_car_id);
+
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Car ID already exists.');
+    WHEN VALUE_ERROR THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Invalid data type provided.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END;
+/
+```
+<img width="1915" height="1020" alt="procedure1 add a new car" src="https://github.com/user-attachments/assets/0a2fdfc2-627a-497b-b525-2b738717ffdb" />
+
+
+### A.2 Procedure: Update Car Status
+**Purpose:**  
+Updates the status of a car and records the change in the status history table.
+
+```sql
+--PROCEDURE 2: Update Car Status (UPDATE + IN / OUT parameter + validation + exception handling)
+
+CREATE OR REPLACE PROCEDURE update_car_status (
+    p_car_id    IN NUMBER,
+    p_new_status IN VARCHAR2,
+    p_old_status OUT VARCHAR2
+)
+IS
+BEGIN
+    -- Fetch old status
+    SELECT status INTO p_old_status 
+    FROM car 
+    WHERE car_id = p_car_id;
+
+    -- Update to new status
+    UPDATE car
+    SET status = p_new_status
+    WHERE car_id = p_car_id;
+
+    -- Log into status history
+    INSERT INTO status_history (history_id, car_id, old_status, new_status, change_date)
+    VALUES (status_history_seq.NEXTVAL, p_car_id, p_old_status, p_new_status, SYSDATE);
+
+    DBMS_OUTPUT.PUT_LINE('Status updated from ' || p_old_status || ' to ' || p_new_status);
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Car ID does not exist.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END;
+/
+```
+<img width="1917" height="1022" alt="PROCEDURE 2 Update Car Status" src="https://github.com/user-attachments/assets/99b5a09a-9a97-4300-94be-2718da674c1d" />
+
+
+### A.3 Procedure: Delete Mechanic Safely
+**Purpose:**  
+Deletes a mechanic only if they are not referenced by inspection records.
+
+```sql
+--PROCEDURE 3: Delete Mechanic (DELETE + IN OUT parameter + exception handling + business check)
+
+CREATE OR REPLACE PROCEDURE delete_mechanic (
+    p_mechanic_id IN NUMBER,
+    p_rows_deleted OUT NUMBER
+)
+IS
+    v_count NUMBER;
+BEGIN
+    -- Check if mechanic is referenced in inspections
+    SELECT COUNT(*) INTO v_count
+    FROM inspection
+    WHERE mechanic_id = p_mechanic_id;
+
+    IF v_count > 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Mechanic is linked to inspections. Cannot delete.');
+        p_rows_deleted := 0;
+        RETURN;
+    END IF;
+
+    -- Delete mechanic
+    DELETE FROM mechanic
+    WHERE mechanic_id = p_mechanic_id;
+
+    p_rows_deleted := SQL%ROWCOUNT;
+
+    DBMS_OUTPUT.PUT_LINE('Mechanic deleted. Rows affected: ' || p_rows_deleted);
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Mechanic not found.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END;
+/
+```
+<img width="1915" height="1017" alt="PROCEDURE 3 Delete Mechanic" src="https://github.com/user-attachments/assets/b3f55fc8-7773-4e17-8c1a-7e6e98c5a356" />
+
+
+## B. Functions
+
+Functions return single values and are used for validation, calculation, and data lookup.
+
+### B.1 Function: Calculate Car Age in Days
+**Purpose:**  
+Calculates the number of days a car has been registered in the system.
+
+**Key Concepts:**
+- Date arithmetic  
+- Scalar return values  
+- Exception handling  
+
+---
+
+### B.2 Function: Validate Car Status
+**Purpose:**  
+Validates whether a given car status is allowed.
+
+**Key Concepts:**
+- Business rule validation  
+- Conditional logic  
+- Controlled return values  
+
+---
+
+### B.3 Function: Get Mechanic Name
+**Purpose:**  
+Returns the name of a mechanic using their ID.
+
+**Key Concepts:**
+- Lookup logic  
+- `%TYPE` attribute  
+- Graceful handling of missing data  
+
+---
+
+### B.4 Function: Check for Critical Faults
+**Purpose:**  
+Checks whether a car has any critical faults recorded.
+
+**Key Concepts:**
+- Aggregate functions  
+- Conditional returns  
+- Risk detection  
+
+---
+
+## C. Cursors
+
+Cursors are used for row-by-row processing of multiple records.
+
+### C.1 Explicit Cursor – Cars Under Repair
+**Purpose:**  
+Lists all cars currently marked as under repair.
+
+**Key Concepts:**
+- Explicit cursor lifecycle  
+- Loop processing  
+- Multi-row handling  
+
+---
+
+### C.2 Parameterized Cursor – Inspections by Mechanic
+**Purpose:**  
+Displays all inspections performed by a specific mechanic.
+
+**Key Concepts:**
+- Parameterized cursors  
+- Dynamic filtering  
+- Output formatting  
+
+---
+
+### C.3 Bulk Operations – Status History Logging
+**Purpose:**  
+Performs bulk insertion into the status history table for all active cars.
+
+**Key Concepts:**
+- BULK COLLECT  
+- FORALL  
+- Performance optimization  
+
+---
+
+## D. Window Functions
+
+Window functions are used for analytical and reporting purposes.
+
+**Functions Used:**
+- ROW_NUMBER()  
+- RANK()  
+- DENSE_RANK()  
+- LAG()  
+- LEAD()  
+- COUNT() OVER()  
+
+**Business Value:**  
+Supports ranking, trend analysis, historical comparisons, and advanced reporting.
+
+---
+
+## E. Packages
+
+Packages organize related procedures and functions into a single modular unit.
+
+### E.1 Package Specification
+**Purpose:**  
+Defines the public interface accessible to users and applications.
+
+**Key Concepts:**
+- Encapsulation  
+- Modularity  
+- Code reuse  
+
+---
+
+### E.2 Package Body
+**Purpose:**  
+Implements the logic defined in the package specification.
+
+**Key Concepts:**
+- Centralized business logic  
+- Maintainability  
+- Reusability  
+
+---
+
+## F. Exception Handling & Error Management
+
+### F.1 Error Logging Table
+**Purpose:**  
+Stores runtime errors for auditing and troubleshooting.
+
+---
+
+### F.2 Central Error Logging Procedure
+**Purpose:**  
+Provides a reusable mechanism for logging errors across all procedures.
+
+---
+
+### F.3 Predefined Exceptions
+**Purpose:**  
+Handles standard Oracle exceptions such as:
+- NO_DATA_FOUND  
+- DUP_VAL_ON_INDEX  
+- VALUE_ERROR  
+
+---
+
+### F.4 Custom Exceptions
+**Purpose:**  
+Implements business-specific validation rules such as preventing future manufacturing years.
+
+---
+
+### F.5 Recovery Mechanism
+**Purpose:**  
+Restores previous data state after a failed operation to maintain data integrity.
+
+---
+
+## Phase VI Completion Summary
+Phase VI successfully demonstrates advanced PL/SQL capabilities including procedures, functions, cursors, packages, analytical queries, and robust exception handling, ensuring reliability, performance, and data integrity across the system.
 
 
