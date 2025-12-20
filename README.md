@@ -290,3 +290,158 @@ CREATE TABLE status_history (
 );
 ```
 <img width="1908" height="980" alt="tables status history created" src="https://github.com/user-attachments/assets/81357720-70ae-4dae-955c-02ef99077ed8" />
+
+## B. Data Insertion
+
+The following SQL statements insert realistic and edge-case test data into all tables of the Smart Car Inventory System.  
+
+```sql
+----- DATA INSERTION ------------
+
+------ MECHANIC ------------
+INSERT INTO mechanic VALUES (1, 'John Mukasa', 'Engine');
+INSERT INTO mechanic VALUES (2, 'Alice Karemera', 'Electrical');
+INSERT INTO mechanic VALUES (3, 'Samuel Mugenzi', 'Bodywork');
+INSERT INTO mechanic VALUES (4, 'Fiona Uwase', 'Diagnostics');
+-- Edge case: NULL specialization allowed
+INSERT INTO mechanic VALUES (5, 'Patrick Nshuti', NULL);
+
+
+-------------- CAR -------------
+-- Valid normal entries
+INSERT INTO car VALUES (101, 'Corolla', 'Toyota', 2018, 'ACTIVE', SYSDATE);
+INSERT INTO car VALUES (102, 'Civic', 'Honda', 2020, 'IN_REPAIR', SYSDATE);
+
+-- Edge case: older valid year
+INSERT INTO car VALUES (103, 'Pajero', 'Mitsubishi', 1985, 'DISABLED', SYSDATE);
+
+-- Edge case: rare brand + active status
+INSERT INTO car VALUES (104, 'Model S', 'Tesla', 2021, 'ACTIVE', SYSDATE);
+
+-- Edge case: NULL date_registered (allowed)
+INSERT INTO car VALUES (105, 'A4', 'Audi', 2019, 'IN_REPAIR', NULL);
+
+
+-------------- INSPECTION ---------------
+INSERT INTO inspection 
+VALUES (1001, 101, 1, DATE '2024-01-10', 'Routine engine check', 'PASS');
+
+INSERT INTO inspection 
+VALUES (1002, 102, 2, DATE '2024-02-15', 'Electrical diagnostics', 'FAIL');
+
+-- Edge case: NULL notes
+INSERT INTO inspection 
+VALUES (1003, 103, 3, DATE '2024-03-05', NULL, 'FAIL');
+
+-- Edge case: PASS with special characters
+INSERT INTO inspection 
+VALUES (1004, 104, 4, DATE '2024-03-20', 'Full scan – no issues found', 'PASS');
+
+-- Edge case: future scheduled inspection
+INSERT INTO inspection 
+VALUES (1005, 105, 5, DATE '2025-01-10', 'Pre-scheduled annual inspection', 'PASS');
+
+
+-------------- FAULT_REPORT -------------
+INSERT INTO fault_report 
+VALUES (5001, 102, 'Alternator failure', 'MAJOR', SYSDATE);
+
+INSERT INTO fault_report 
+VALUES (5002, 103, 'Front bumper dent', 'MINOR', SYSDATE);
+
+-- Edge case: CRITICAL severity
+INSERT INTO fault_report 
+VALUES (5003, 104, 'Brake system malfunction', 'CRITICAL', SYSDATE);
+
+-- Edge case: long description
+INSERT INTO fault_report 
+VALUES (5004, 105, 'Battery voltage irregularities detected overnight', 'MAJOR', SYSDATE);
+
+-- Edge case: DEFAULT SYSDATE
+INSERT INTO fault_report 
+VALUES (5005, 101, 'Oil leak under engine bay', 'MINOR', NULL);
+
+
+-------------- STATUS_HISTORY ------------
+INSERT INTO status_history 
+VALUES (7001, 102, 'ACTIVE', 'IN_REPAIR', SYSDATE);
+
+INSERT INTO status_history 
+VALUES (7002, 103, 'IN_REPAIR', 'DISABLED', SYSDATE);
+
+-- Edge case: old_status equals new_status
+INSERT INTO status_history 
+VALUES (7003, 104, 'ACTIVE', 'ACTIVE', SYSDATE);
+
+-- Edge case: back-and-forth update
+INSERT INTO status_history 
+VALUES (7004, 105, 'IN_REPAIR', 'ACTIVE', SYSDATE);
+
+-- Edge case: DEFAULT SYSDATE
+INSERT INTO status_history 
+VALUES (7005, 101, 'ACTIVE', 'IN_REPAIR', NULL);
+
+COMMIT;
+```
+
+## C. Data Validation and Integrity Checks
+
+### C.1 Primary Key Uniqueness Validation
+This validation ensures that primary key values are unique and no duplicate records exist.
+
+```sql
+SELECT mechanic_id, COUNT(*) 
+FROM mechanic 
+GROUP BY mechanic_id 
+HAVING COUNT(*) > 1;
+
+SELECT car_id, COUNT(*) 
+FROM car 
+GROUP BY car_id 
+HAVING COUNT(*) > 1;
+````
+<img width="1906" height="1021" alt="mechanic id uniqueness validation" src="https://github.com/user-attachments/assets/8bbaaa66-d54f-4e43-8c67-e20fc66faa62" />
+
+
+
+---
+
+### C.2 Domain Constraint Validation
+
+This validation checks whether column values respect defined CHECK constraints.
+
+```sql
+SELECT * 
+FROM car
+WHERE status NOT IN ('ACTIVE','IN_REPAIR','DISABLED');
+
+SELECT * 
+FROM fault_report
+WHERE severity NOT IN ('MINOR','MAJOR','CRITICAL');
+
+SELECT * 
+FROM car
+WHERE year < 1980;
+```
+<img width="1919" height="1020" alt="car id uniqueness validation" src="https://github.com/user-attachments/assets/3854d5ce-a6f3-450e-b27a-4985d89900ce" />
+
+
+---
+
+### C.3 Foreign Key Integrity Validation
+
+This validation verifies that all foreign key references correctly match existing parent records.
+
+```sql
+SELECT i.inspection_id
+FROM inspection i
+LEFT JOIN car c ON i.car_id = c.car_id
+WHERE c.car_id IS NULL;
+
+SELECT i.inspection_id
+FROM inspection i
+LEFT JOIN mechanic m ON i.mechanic_id = m.mechanic_id
+WHERE m.mechanic_id IS NULL;
+```
+<img width="1919" height="1017" alt="foreign key data integrity validation" src="https://github.com/user-attachments/assets/f3cf25f7-ee11-428c-b2cd-4a207c945364" />
+
