@@ -652,45 +652,112 @@ Functions return single values and are used for validation, calculation, and dat
 **Purpose:**  
 Calculates the number of days a car has been registered in the system.
 
-**Key Concepts:**
-- Date arithmetic  
-- Scalar return values  
-- Exception handling  
+```sql
+--(Calculate how many days a car has been in the system)
+CREATE OR REPLACE FUNCTION get_car_age_days (
+    p_car_id IN NUMBER
+) RETURN NUMBER
+IS
+    v_days NUMBER;
+BEGIN
+    SELECT TRUNC(SYSDATE - date_registered)
+    INTO v_days
+    FROM car
+    WHERE car_id = p_car_id;
 
----
+    RETURN v_days;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN NULL; -- car not found
+    WHEN OTHERS THEN
+        RETURN NULL;
+END;
+/
+```
+<img width="1917" height="1015" alt="FUNCTION 1  Calculation Function" src="https://github.com/user-attachments/assets/ce1a8e78-17bc-48d0-b197-f63b174fb95f" />
+
 
 ### B.2 Function: Validate Car Status
 **Purpose:**  
 Validates whether a given car status is allowed.
 
-**Key Concepts:**
-- Business rule validation  
-- Conditional logic  
-- Controlled return values  
+```sql
+CREATE OR REPLACE FUNCTION is_valid_status (
+    p_status IN VARCHAR2
+) RETURN VARCHAR2
+IS
+BEGIN
+    IF p_status IN ('ACTIVE', 'IN_REPAIR', 'DISABLED') THEN
+        RETURN 'VALID';
+    ELSE
+        RETURN 'INVALID';
+    END IF;
 
----
+END;
+/
+```
+<img width="1915" height="1017" alt="FUNCTION 2 — Validation Function" src="https://github.com/user-attachments/assets/c7ae9f77-1af2-4eea-8a5d-13a0d834e1c9" />
+
 
 ### B.3 Function: Get Mechanic Name
 **Purpose:**  
 Returns the name of a mechanic using their ID.
 
-**Key Concepts:**
-- Lookup logic  
-- `%TYPE` attribute  
-- Graceful handling of missing data  
+```sql
+CREATE OR REPLACE FUNCTION get_mechanic_name (
+    p_mechanic_id IN NUMBER
+) RETURN VARCHAR2
+IS
+    v_name mechanic.name%TYPE;
+BEGIN
+    SELECT name INTO v_name
+    FROM mechanic
+    WHERE mechanic_id = p_mechanic_id;
 
----
+    RETURN v_name;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN 'MECHANIC NOT FOUND';
+    WHEN OTHERS THEN
+        RETURN 'ERROR';
+END;
+/
+```
+<img width="1918" height="1019" alt="FUNCTION 3 — Lookup Function" src="https://github.com/user-attachments/assets/e8b57611-74c1-4535-95d6-b5860b28ebc7" />
+
 
 ### B.4 Function: Check for Critical Faults
 **Purpose:**  
 Checks whether a car has any critical faults recorded.
 
-**Key Concepts:**
-- Aggregate functions  
-- Conditional returns  
-- Risk detection  
+```sql
+CREATE OR REPLACE FUNCTION has_critical_fault (
+    p_car_id IN NUMBER
+) RETURN VARCHAR2
+IS
+    v_count NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_count
+    FROM fault_report
+    WHERE car_id = p_car_id
+      AND severity = 'CRITICAL';
 
----
+    IF v_count > 0 THEN
+        RETURN 'YES';
+    ELSE
+        RETURN 'NO';
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN 'ERROR';
+END;
+/
+```
+<img width="1918" height="1022" alt="FUNCTION 4 — Lookup + Validation" src="https://github.com/user-attachments/assets/c408551e-e91f-41cf-9d38-7034ec517af0" />
+
 
 ## C. Cursors
 
