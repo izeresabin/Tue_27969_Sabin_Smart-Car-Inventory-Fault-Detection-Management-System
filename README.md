@@ -176,6 +176,9 @@ AUTOEXTEND ON NEXT 5M MAXSIZE UNLIMITED;
 ```
 <img width="1019" height="412" alt="tablespace creation" src="https://github.com/user-attachments/assets/3f0b5d52-a613-4907-b036-2b88a56a760b" />
 
+### TABLESPACES IN OEM
+<img width="1905" height="908" alt="OEM TABLESPACE" src="https://github.com/user-attachments/assets/796d81f5-0019-428f-890c-d669591514f8" />
+
 ### Enabling Archive Logging
 
 ```sql
@@ -197,4 +200,20 @@ SHOW PARAMETER memory_target;
 ### Phase IV Completion Summary
 At the end of this phase, a fully functional Oracle Database Pluggable Database has been created and configured with dedicated tablespaces, archive logging enabled, documented memory parameters, and an administrative user ready to support all subsequent phases of the Smart Car Inventory System.
 
+# Phase V – Table Implementation & Data Insertion  
+
+## Phase Overview
+This phase focuses on implementing the **physical database structure** for the Smart Car Inventory System. All entities identified in the logical data model are translated into Oracle tables with appropriate data types, primary keys, foreign keys, constraints, and default values. These tables support vehicle registration, inspections, fault reporting, mechanic assignments, and historical tracking of car status changes.
+
+---
+
+## 📊 Database Tables Used
+
+| Table Name       | Description |
+|-----------------|-------------|
+| **CAR** | Stores registered vehicles including model, brand, year, operational status, and registration date. |
+| **MECHANIC** | Stores mechanics responsible for inspecting and repairing vehicles, including their specialization. |
+| **INSPECTION** | Records inspection details for cars, including inspection date, assigned mechanic, results, and notes. |
+| **FAULT_REPORT** | Stores reported vehicle faults with severity level and reporting date. |
+| **STATUS_HISTORY** | Tracks historical changes in vehicle status over time for auditing and analysis purposes. |
 
