@@ -1594,10 +1594,73 @@ END;
 <img width="1914" height="1018" alt="Compound Trigger (Multiple Events)" src="https://github.com/user-attachments/assets/77be521d-a0a2-4783-aedd-43de3dd0a6b7" />
 
 
-## Phase VII Summary
+## H. Phase VII – Trigger & Auditing Testing
 
-* Business rules are automatically enforced using triggers
-* Unauthorized operations are blocked at database level
-* All actions are audited with user, timestamp, and status
-* Public holidays and weekdays are dynamically enforced
+This section validates that all triggers and auditing mechanisms correctly enforce business rules, block restricted operations, allow valid operations, and record every action in the audit log.
+
+
+
+## H.1 Trigger Test – INSERT Blocked on Weekday (DENIED)
+
+This test verifies that the trigger prevents INSERT operations on the `CAR` table during weekdays.
+
+```sql
+INSERT INTO car
+VALUES (9100, 'TestCar', 'TestBrand', 2020, 'ACTIVE', SYSDATE);
+````
+
+<img width="1911" height="984" alt="1  when insetring data in week dayss" src="https://github.com/user-attachments/assets/29f017c3-c1f8-48c6-871c-1a54c1d0307e" />
+
+## H.2 Trigger Test – INSERT Allowed on Weekend (ALLOWED)
+
+This test confirms that INSERT operations are permitted on weekends when no business rules are violated.
+
+```sql
+INSERT INTO car
+VALUES (9101, 'WeekendCar', 'Toyota', 2021, 'ACTIVE', SYSDATE);
+```
+<img width="1916" height="1019" alt="2  Trigger allows INSERT on WEEKEND (ALLOWED) inserted on sunday" src="https://github.com/user-attachments/assets/81e7f6fc-4191-4af1-8712-0bb8052fcd1d" />
+
+
+## H.3 Trigger Test – INSERT Blocked on Public Holiday (DENIED)
+
+This test ensures that INSERT operations are blocked when a public holiday exists within the upcoming month.
+
+```sql
+INSERT INTO car
+VALUES (9102, 'HolidayCar', 'Honda', 2022, 'ACTIVE', SYSDATE);
+```
+<img width="1458" height="406" alt="3Trigger blocks INSERT on PUBLIC HOLIDAY (DENIED)" src="https://github.com/user-attachments/assets/17cb04e3-3c30-44b1-8320-3cd518bc79b4" />
+
+
+## H.4 Audit Log Verification – All Attempts Recorded
+
+This test verifies that both successful and blocked operations are fully recorded in the audit log.
+
+```sql
+SELECT username, action, table_name, status, message, action_date
+FROM audit_log
+ORDER BY action_date DESC;
+```
+<img width="1913" height="1018" alt="4  Audit log captures ALL attempts (SUCCESS + BLOCKED)  status in weekend" src="https://github.com/user-attachments/assets/665ab9a8-a2e1-491b-ab39-3c78f3b342b6" />
+
+
+## H.5 Audit Log Verification – User Information Captured
+
+This test confirms that the database user performing each operation is properly recorded in the audit log.
+
+```sql
+SELECT DISTINCT username
+FROM audit_log;
+```
+<img width="1500" height="372" alt="6  User info properly recorded" src="https://github.com/user-attachments/assets/189313e1-fbda-4915-b32d-0c2b2cb37437" />
+
+
+## Phase VII Testing Conclusion
+
+* Triggers correctly block restricted weekday and public holiday operations
+* Valid weekend operations are successfully allowed
+* Every attempt is logged with accurate status and messages
+* User identity and timestamps are fully captured
+
 
