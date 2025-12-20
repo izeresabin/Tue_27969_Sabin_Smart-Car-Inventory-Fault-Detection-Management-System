@@ -978,37 +978,270 @@ Packages organize related procedures and functions into a single modular unit.
 **Purpose:**  
 Defines the public interface accessible to users and applications.
 
-**Key Concepts:**
-- Encapsulation  
-- Modularity  
-- Code reuse  
+```sql
+--PACKAGE SPECIFICATION (PUBLIC INTERFACE):This is what other users/programs can call.
+CREATE OR REPLACE PACKAGE smartcar_mgmt_pkg AS
 
----
+    -- Procedure: Add a new car
+    PROCEDURE add_car (
+        p_car_id        IN NUMBER,
+        p_model         IN VARCHAR2,
+        p_brand         IN VARCHAR2,
+        p_year          IN NUMBER,
+        p_status        IN VARCHAR2,
+        p_date_registered IN DATE DEFAULT SYSDATE
+    );
+
+    -- Procedure: Update car status (with OUT old status)
+    PROCEDURE update_car_status (
+        p_car_id     IN NUMBER,
+        p_new_status IN VARCHAR2,
+        p_old_status OUT VARCHAR2
+    );
+
+    -- Procedure: Delete mechanic safely
+    PROCEDURE delete_mechanic (
+        p_mechanic_id  IN NUMBER,
+        p_rows_deleted OUT NUMBER
+    );
+
+    -- Function: Validate car status
+    FUNCTION is_valid_status (
+        p_status IN VARCHAR2
+    ) RETURN VARCHAR2;
+
+    -- Function: Get mechanic name
+    FUNCTION get_mechanic_name (
+        p_mechanic_id IN NUMBER
+    ) RETURN VARCHAR2;
+
+    -- Function: Check if a car has a critical fault
+    FUNCTION has_critical_fault (
+        p_car_id IN NUMBER
+    ) RETURN VARCHAR2;
+
+END smartcar_mgmt_pkg;
+/
+```
+<img width="1919" height="1023" alt="PACKAGE SPECIFICATION (PUBLIC INTERFACE)" src="https://github.com/user-attachments/assets/a67b36a4-0094-4d27-a148-422e19689a4b" />
+
 
 ### E.2 Package Body
 **Purpose:**  
 Implements the logic defined in the package specification.
+```sql
+--PACKAGE BODY (IMPLEMENTATION):This contains the actual code.
+CREATE OR REPLACE PACKAGE BODY smartcar_mgmt_pkg AS
 
-**Key Concepts:**
-- Centralized business logic  
-- Maintainability  
-- Reusability  
 
----
+-- ===========================================
+-- PROCEDURE 1: Add a new car
+-- ===========================================
+PROCEDURE add_car (
+    p_car_id        IN NUMBER,
+    p_model         IN VARCHAR2,
+    p_brand         IN VARCHAR2,
+    p_year          IN NUMBER,
+    p_status        IN VARCHAR2,
+    p_date_registered IN DATE
+)
+IS
+BEGIN
+    INSERT INTO car (car_id, model, brand, year, status, date_registered)
+    VALUES (p_car_id, p_model, p_brand, p_year, p_status, p_date_registered);
+
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Car ID already exists.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END add_car;
+
+
+
+-- ===========================================
+-- PROCEDURE 2: Update car status
+-- ===========================================
+PROCEDURE update_car_status (
+    p_car_id     IN NUMBER,
+    p_new_status IN VARCHAR2,
+    p_old_status OUT VARCHAR2
+)
+IS
+BEGIN
+    -- Fetch previous status
+    SELECT status INTO p_old_status
+    FROM car
+    WHERE car_id = p_car_id;
+
+    -- Update car
+    UPDATE car
+    SET status = p_new_status
+    WHERE car_id = p_car_id;
+
+    -- Log history
+    INSERT INTO status_history (
+        history_id, car_id, old_status, new_status, change_date
+    )
+    VALUES (
+        status_history_seq.NEXTVAL,
+        p_car_id,
+        p_old_status,
+        p_new_status,
+        SYSDATE
+    );
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Car not found.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END update_car_status;
+
+
+
+-- ===========================================
+-- PROCEDURE 3: Delete mechanic
+-- ===========================================
+PROCEDURE delete_mechanic (
+    p_mechanic_id  IN NUMBER,
+    p_rows_deleted OUT NUMBER
+)
+IS
+    v_count NUMBER;
+BEGIN
+    -- Block deletion if mechanic is referenced
+    SELECT COUNT(*) INTO v_count
+    FROM inspection
+    WHERE mechanic_id = p_mechanic_id;
+
+    IF v_count > 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Mechanic has inspections.');
+        p_rows_deleted := 0;
+        RETURN;
+    END IF;
+
+    -- Delete record
+    DELETE FROM mechanic
+    WHERE mechanic_id = p_mechanic_id;
+
+    p_rows_deleted := SQL%ROWCOUNT;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END delete_mechanic;
+
+
+
+-- ===========================================
+-- FUNCTION 1: Validate status
+-- ===========================================
+FUNCTION is_valid_status (
+    p_status IN VARCHAR2
+) RETURN VARCHAR2
+IS
+BEGIN
+    IF p_status IN ('ACTIVE', 'IN_REPAIR', 'DISABLED') THEN
+        RETURN 'VALID';
+    ELSE
+        RETURN 'INVALID';
+    END IF;
+END is_valid_status;
+
+
+
+-- ===========================================
+-- FUNCTION 2: Get mechanic name
+-- ===========================================
+FUNCTION get_mechanic_name (
+    p_mechanic_id IN NUMBER
+) RETURN VARCHAR2
+IS
+    v_name mechanic.name%TYPE;
+BEGIN
+    SELECT name INTO v_name
+    FROM mechanic
+    WHERE mechanic_id = p_mechanic_id;
+
+    RETURN v_name;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN 'MECHANIC NOT FOUND';
+END get_mechanic_name;
+
+
+
+-- ===========================================
+-- FUNCTION 3: Check for critical fault
+-- ===========================================
+FUNCTION has_critical_fault (
+    p_car_id IN NUMBER
+) RETURN VARCHAR2
+IS
+    v_count NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_count
+    FROM fault_report
+    WHERE car_id = p_car_id AND severity = 'CRITICAL';
+
+    IF v_count > 0 THEN
+        RETURN 'YES';
+    ELSE
+        RETURN 'NO';
+    END IF;
+
+END has_critical_fault;
+
+
+END smartcar_mgmt_pkg;
+/
+```
+<img width="1915" height="1022" alt="PACKAGE BODY (IMPLEMENTATION)" src="https://github.com/user-attachments/assets/f43cdecf-12bc-478c-9db8-3b4da7748f80" />
+
 
 ## F. Exception Handling & Error Management
 
 ### F.1 Error Logging Table
 **Purpose:**  
 Stores runtime errors for auditing and troubleshooting.
+```sql
+--1. ERROR LOGGING TABLE (Required for Logging):Before writing exceptions, we need a table to store errors.
+CREATE TABLE error_log (
+    error_id      NUMBER GENERATED ALWAYS AS IDENTITY,
+    error_code    NUMBER,
+    error_message VARCHAR2(400),
+    error_date    DATE DEFAULT SYSDATE,
+    module_name   VARCHAR2(50)
+);
+```
+<img width="1919" height="985" alt="1  ERROR LOGGING TABLE (Required for Logging)" src="https://github.com/user-attachments/assets/0933717e-a7ed-49fe-a1bc-9e2b910b4b27" />
 
----
 
 ### F.2 Central Error Logging Procedure
 **Purpose:**  
 Provides a reusable mechanism for logging errors across all procedures.
+```sql
+ERROR LOGGING PROCEDURE: Every exception handler will call this.
+CREATE OR REPLACE PROCEDURE log_error (
+    p_code    NUMBER,
+    p_msg     VARCHAR2,
+    p_module  VARCHAR2
+)
+IS
+BEGIN
+    INSERT INTO error_log (error_code, error_message, module_name)
+    VALUES (p_code, p_msg, p_module);
 
----
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Logging failed: ' || SQLERRM);
+END;
+/
+```
+<img width="1919" height="1023" alt="2  ERROR LOGGING PROCEDURE" src="https://github.com/user-attachments/assets/bc5c56e0-bd71-41e9-b742-b1238b8a8577" />
+
 
 ### F.3 Predefined Exceptions
 **Purpose:**  
@@ -1016,20 +1249,114 @@ Handles standard Oracle exceptions such as:
 - NO_DATA_FOUND  
 - DUP_VAL_ON_INDEX  
 - VALUE_ERROR  
+```sql
+Example: Handling NO_DATA_FOUND, DUP_VAL_ON_INDEX, VALUE_ERROR.
+CREATE OR REPLACE PROCEDURE update_car_year (
+    p_car_id IN NUMBER,
+    p_year   IN NUMBER
+)
+IS
+BEGIN
+    UPDATE car
+    SET year = p_year
+    WHERE car_id = p_car_id;
 
----
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        log_error(SQLCODE, SQLERRM, 'update_car_year');
+        DBMS_OUTPUT.PUT_LINE('Error: Car not found.');
+
+    WHEN DUP_VAL_ON_INDEX THEN
+        log_error(SQLCODE, SQLERRM, 'update_car_year');
+        DBMS_OUTPUT.PUT_LINE('Duplicate key error.');
+
+    WHEN VALUE_ERROR THEN
+        log_error(SQLCODE, SQLERRM, 'update_car_year');
+        DBMS_OUTPUT.PUT_LINE('Invalid numeric or date format.');
+
+    WHEN OTHERS THEN
+        log_error(SQLCODE, SQLERRM, 'update_car_year');
+        DBMS_OUTPUT.PUT_LINE('Unknown error occurred.');
+END;
+/
+```
+<img width="1919" height="1000" alt="3  PREDEFINED EXCEPTIONS EXAMPLE" src="https://github.com/user-attachments/assets/62927b03-7b1b-4a0c-9a81-16aa59f8a7e7" />
 
 ### F.4 Custom Exceptions
 **Purpose:**  
 Implements business-specific validation rules such as preventing future manufacturing years.
 
----
+```sql
+--We define a custom exception:
+--Requirement:"Car year cannot be in the future"
+CREATE OR REPLACE PROCEDURE add_car_safe (
+    p_car_id  IN NUMBER,
+    p_model   IN VARCHAR2,
+    p_brand   IN VARCHAR2,
+    p_year    IN NUMBER
+)
+IS
+    future_year EXCEPTION;
+BEGIN
+    IF p_year > EXTRACT(YEAR FROM SYSDATE) THEN
+        RAISE future_year;
+    END IF;
+
+    INSERT INTO car (car_id, model, brand, year, status, date_registered)
+    VALUES (p_car_id, p_model, p_brand, p_year, 'ACTIVE', SYSDATE);
+
+EXCEPTION
+    WHEN future_year THEN
+        log_error(-20010, 'Car manufacturing year cannot be in the future', 'add_car_safe');
+        DBMS_OUTPUT.PUT_LINE('Invalid year: cannot insert a future year.');
+
+    WHEN OTHERS THEN
+        log_error(SQLCODE, SQLERRM, 'add_car_safe');
+        DBMS_OUTPUT.PUT_LINE('Insert failed.');
+END;
+/
+```
+<img width="1919" height="992" alt="4  CUSTOM EXCEPTION EXAMPLE" src="https://github.com/user-attachments/assets/2f0486eb-0ec7-42ce-87a6-bf37f73373b0" />
+
 
 ### F.5 Recovery Mechanism
 **Purpose:**  
 Restores previous data state after a failed operation to maintain data integrity.
 
----
+```sql
+--Example: If updating mechanic fails ? restore old data.
+CREATE OR REPLACE PROCEDURE safe_update_mechanic (
+    p_id      IN NUMBER,
+    p_newname IN VARCHAR2
+)
+IS
+    v_old_name  mechanic.name%TYPE;
+BEGIN
+    -- Backup old value
+    SELECT name INTO v_old_name
+    FROM mechanic
+    WHERE mechanic_id = p_id;
+
+    -- Attempt update
+    UPDATE mechanic
+    SET name = p_newname
+    WHERE mechanic_id = p_id;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Recovery: restore old name
+        UPDATE mechanic
+        SET name = v_old_name
+        WHERE mechanic_id = p_id;
+
+        log_error(SQLCODE, SQLERRM, 'safe_update_mechanic');
+
+        DBMS_OUTPUT.PUT_LINE('Update failed. Data restored.');
+END;
+/
+```
+<img width="1919" height="1019" alt="5  RECOVERY MECHANISM EXAMPLE" src="https://github.com/user-attachments/assets/19d5b9a3-a149-417d-bbbd-0eaa9faf1a3a" />
+
 
 ## Phase VI Completion Summary
 Phase VI successfully demonstrates advanced PL/SQL capabilities including procedures, functions, cursors, packages, analytical queries, and robust exception handling, ensuring reliability, performance, and data integrity across the system.
