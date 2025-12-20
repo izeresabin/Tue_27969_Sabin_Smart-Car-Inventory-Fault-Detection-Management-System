@@ -52,6 +52,7 @@ This project presents a **Smart Car Inventory & Fault-Detection Management Syste
 5. [PHASEV.md](PHASEV.md)
 6. [PHASEVI.md](PHASEVI.md)
 7. [PHASEVII.md](PHASEVII.md)
+8. [BI.md](BI.md)
 
 # AUTHOR
 - **Name:** IZERE Sabin Patience  
