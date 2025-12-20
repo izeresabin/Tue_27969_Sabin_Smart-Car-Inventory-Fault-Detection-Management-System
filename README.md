@@ -217,3 +217,76 @@ This phase focuses on implementing the **physical database structure** for the S
 | **FAULT_REPORT** | Stores reported vehicle faults with severity level and reporting date. |
 | **STATUS_HISTORY** | Tracks historical changes in vehicle status over time for auditing and analysis purposes. |
 
+## A. Table Creation
+
+### CAR Table
+```sql
+CREATE TABLE car (
+    car_id          NUMBER          PRIMARY KEY,
+    model           VARCHAR2(50)    NOT NULL,
+    brand           VARCHAR2(50)    NOT NULL,
+    year            NUMBER(4)       CHECK (year >= 1980),
+    status          VARCHAR2(30)    CHECK (status IN ('ACTIVE','IN_REPAIR','DISABLED')),
+    date_registered DATE            DEFAULT SYSDATE
+);
+````
+<img width="1862" height="992" alt="table car creation" src="https://github.com/user-attachments/assets/6cf6edb6-f296-48c0-8aac-9de939ad9d40" />
+
+### MECHANIC Table
+
+```sql
+CREATE TABLE mechanic (
+    mechanic_id    NUMBER          PRIMARY KEY,
+    name           VARCHAR2(50)    NOT NULL,
+    specialization VARCHAR2(50)    CHECK (specialization IN ('Engine','Electrical','Bodywork','Diagnostics'))
+);
+```
+<img width="1896" height="988" alt="table mechanic creation" src="https://github.com/user-attachments/assets/fd5d22fd-35f8-4e01-a808-c757dfbf76b8" />
+
+### INSPECTION Table
+
+```sql
+CREATE TABLE inspection (
+    inspection_id   NUMBER          PRIMARY KEY,
+    car_id          NUMBER          NOT NULL,
+    mechanic_id     NUMBER          NOT NULL,
+    inspection_date DATE            NOT NULL,
+    notes           VARCHAR2(200),
+    result          VARCHAR2(20)    CHECK (result IN ('PASS','FAIL')),
+    CONSTRAINT fk_inspection_car
+        FOREIGN KEY (car_id) REFERENCES car(car_id),
+    CONSTRAINT fk_inspection_mechanic
+        FOREIGN KEY (mechanic_id) REFERENCES mechanic(mechanic_id)
+);
+```
+<img width="1898" height="992" alt="table inspection creation" src="https://github.com/user-attachments/assets/cb5cbb68-970d-4025-bd20-7ec7b0b6e8fe" />
+
+### FAULT_REPORT Table
+
+```sql
+CREATE TABLE fault_report (
+    fault_id       NUMBER          PRIMARY KEY,
+    car_id         NUMBER          NOT NULL,
+    fault_desc     VARCHAR2(200)   NOT NULL,
+    severity       VARCHAR2(20)    CHECK (severity IN ('MINOR','MAJOR','CRITICAL')),
+    date_reported  DATE            DEFAULT SYSDATE,
+    CONSTRAINT fk_fault_car
+        FOREIGN KEY (car_id) REFERENCES car(car_id)
+);
+```
+<img width="1885" height="1010" alt="table fault report creation" src="https://github.com/user-attachments/assets/3d016f82-c6c3-4818-9cd9-fd5b44d9824f" />
+
+### STATUS_HISTORY Table
+
+```sql
+CREATE TABLE status_history (
+    history_id   NUMBER          PRIMARY KEY,
+    car_id       NUMBER          NOT NULL,
+    old_status   VARCHAR2(30)    CHECK (old_status IN ('ACTIVE','IN_REPAIR','DISABLED')),
+    new_status   VARCHAR2(30)    CHECK (new_status IN ('ACTIVE','IN_REPAIR','DISABLED')),
+    change_date  DATE            DEFAULT SYSDATE,
+    CONSTRAINT fk_status_car
+        FOREIGN KEY (car_id) REFERENCES car(car_id)
+);
+```
+<img width="1908" height="980" alt="tables status history created" src="https://github.com/user-attachments/assets/81357720-70ae-4dae-955c-02ef99077ed8" />
