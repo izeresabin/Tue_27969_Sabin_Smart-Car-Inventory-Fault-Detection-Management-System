@@ -3,7 +3,7 @@
 # project overview
 ## 📘 Introduction
 ## 🚩 Problem Statement 
-Car dealerships manage large inventories of vehicles, each of which undergoes multiple inspections, repairs, and evaluations before being approved for sale. Managing these processes manually or without a centralized system can lea
+Car dealerships manage large inventories of vehicles, each of which undergoes multiple inspections, repairs, and evaluations before being approved for sale. Managing these processes manually or without a centralized system can lead to data inconsistency, delayed fault detection, and inefficient decision-making.
 
 
 This project presents a **Smart Car Inventory & Fault-Detection Management System** developed using **Oracle Database and PL/SQL** to automate the management of vehicles, inspections, faults, and mechanic activities. The system intelligently identifies and flags vehicles with repeated faults, ensuring improved operational efficiency, enhanced data integrity, and faster, more informed decision-making within a real-world dealership environment.
